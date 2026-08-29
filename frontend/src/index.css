@@ -417,30 +417,35 @@ h1 {
 .camera-status.error .status-dot { background: #dd6472; }
 
 .camera-status-message {
-  min-height: 58px;
-  margin-bottom: 24px;
+  min-height: 48px;
+  margin-bottom: 18px;
   color: #727e96;
   font-size: 0.88rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
+.status-sub-section,
 .face-status-area {
-  margin-bottom: 24px;
-  padding-top: 21px;
+  margin-bottom: 18px;
+  padding-top: 16px;
   border-top: 1px solid #edf0f5;
 }
 
-.face-status {
+.face-status,
+.eye-status,
+.drowsiness-status {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   color: #6d788e;
-  font-size: 0.97rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
-.face-status .status-dot {
+.face-status .status-dot,
+.eye-status .status-dot,
+.drowsiness-status .status-dot {
   background: #8c96aa;
 }
 
@@ -453,12 +458,31 @@ h1 {
 .face-status.error { color: #b84b59; }
 .face-status.error .status-dot { background: #dd6472; }
 
+/* Eye Status classes */
+.eye-status.eyes-open { color: #21865f; }
+.eye-status.eyes-open .status-dot { background: #32bb88; }
+.eye-status.eyes-closed { color: #9b741d; }
+.eye-status.eyes-closed .status-dot { background: #dfac34; }
+.eye-status.eyes-unknown { color: #6d788e; }
+.eye-status.eyes-unknown .status-dot { background: #8c96aa; }
+
+/* Drowsiness Status classes */
+.drowsiness-status.alert { color: #21865f; }
+.drowsiness-status.alert .status-dot { background: #32bb88; }
+.drowsiness-status.eyes-closed { color: #9b741d; }
+.drowsiness-status.eyes-closed .status-dot { background: #dfac34; }
+.drowsiness-status.drowsiness-suspected { color: #b84b59; }
+.drowsiness-status.drowsiness-suspected .status-dot { background: #dd6472; }
+.drowsiness-status.paused { color: #6d788e; }
+.drowsiness-status.paused .status-dot { background: #8c96aa; }
+
+.status-note-message,
 .face-status-message {
-  min-height: 43px;
+  min-height: 28px;
   margin-bottom: 0;
   color: #727e96;
-  font-size: 0.84rem;
-  line-height: 1.55;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .camera-button {
