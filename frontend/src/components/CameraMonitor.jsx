@@ -6,6 +6,7 @@ const MEDIAPIPE_WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision
 const FACE_DETECTOR_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite";
 const DETECTION_INTERVAL_MS = 200;
+const MISSED_FRAMES_THRESHOLD = 3;
 
 const cameraMessages = {
   "camera-off": "Camera is off. Enable it whenever you are ready to study.",
@@ -64,6 +65,7 @@ function CameraMonitor() {
   const mountedRef = useRef(true);
   const faceStatusRef = useRef("off");
   const faceMessageRef = useRef(faceMessages.off);
+  const consecutiveMissedFramesRef = useRef(0);
 
   const [cameraStatus, setCameraStatus] = useState("camera-off");
   const [cameraMessage, setCameraMessage] = useState(cameraMessages["camera-off"]);
@@ -126,6 +128,7 @@ function CameraMonitor() {
   const stopFaceDetection = useCallback(() => {
     detectionActiveRef.current = false;
     lastDetectionTimeRef.current = 0;
+    consecutiveMissedFramesRef.current = 0;
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -179,6 +182,7 @@ function CameraMonitor() {
 
         detectorRef.current = detector;
         detectionActiveRef.current = true;
+        consecutiveMissedFramesRef.current = 0;
 
         const processFrame = (timestamp) => {
           if (
@@ -191,7 +195,12 @@ function CameraMonitor() {
 
           const activeVideo = videoRef.current;
 
-          if (!activeVideo || activeVideo.readyState < 2) {
+          if (
+            !activeVideo ||
+            activeVideo.readyState < 2 ||
+            !activeVideo.videoWidth ||
+            !activeVideo.videoHeight
+          ) {
             animationFrameRef.current = requestAnimationFrame(processFrame);
             return;
           }
@@ -201,20 +210,25 @@ function CameraMonitor() {
 
             try {
               const result = detectorRef.current.detectForVideo(activeVideo, performance.now());
-              const detection = result.detections[0];
+              const detection = result.detections?.[0];
 
               if (detection) {
+                consecutiveMissedFramesRef.current = 0;
                 drawFaceOverlay(detection);
                 updateFaceStatus("detected", faceMessages.detected);
               } else {
                 clearFaceOverlay();
-                updateFaceStatus("not-detected", faceMessages["not-detected"]);
+                consecutiveMissedFramesRef.current += 1;
+                if (consecutiveMissedFramesRef.current >= MISSED_FRAMES_THRESHOLD) {
+                  updateFaceStatus("not-detected", faceMessages["not-detected"]);
+                }
               }
-            } catch {
+            } catch (err) {
+              console.error("Face detection processing error:", err);
               stopFaceDetection();
               updateFaceStatus(
                 "error",
-                "Face detection stopped unexpectedly. Stop the camera and try again.",
+                "Face detection encountered an issue. Camera preview remains active.",
               );
               return;
             }
@@ -224,7 +238,8 @@ function CameraMonitor() {
         };
 
         animationFrameRef.current = requestAnimationFrame(processFrame);
-      } catch {
+      } catch (err) {
+        console.error("MediaPipe initialization error:", err);
         detector?.close();
 
         if (mountedRef.current && cameraRunIdRef.current === cameraRunId) {
