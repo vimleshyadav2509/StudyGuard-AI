@@ -5,27 +5,36 @@ const MEDIAPIPE_VISION_URL =
 const MEDIAPIPE_WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
 const FACE_LANDMARKER_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task";
+const OBJECT_DETECTOR_MODEL_URL =
+  "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite";
 
 // Configurable detection and timing constants
 const DETECTION_INTERVAL_MS = 100;
+const OBJECT_DETECTION_INTERVAL_MS = 250;
 const MISSED_FRAMES_THRESHOLD = 3;
 
 // Configurable EAR thresholds
 const EYE_OPEN_EAR_THRESHOLD = 0.21;
-
 const EYE_CLOSED_EAR_THRESHOLD = 0.17;
 
-// Configurable temporal stability / debounce timings (Milestone 4)
+// Configurable temporal stability / debounce timings
 const EYE_CLOSED_CONFIRMATION_MS = 350; // Continuous closed time to confirm "Eyes Closed"
 const EYE_OPEN_CONFIRMATION_MS = 200; // Continuous open time to confirm "Eyes Open"
 const DROWSINESS_CLOSED_DURATION_MS = 2000; // Continuous closed time to flag "Drowsiness Suspected"
 
-// Configurable Study Focus timings (Milestone 5)
+// Configurable Study Focus timings
 const FOCUS_CONFIRMATION_MS = 300; // Time in open/alert state before confirming "Focused"
 const ATTENTION_REDUCED_DELAY_MS = 500; // Time in closed/drowsy state before confirming "Attention Reduced"
 
+// Configurable Mobile Phone Detection timings
+const MOBILE_CONFIRMATION_MS = 400; // Continuous detection to confirm "Mobile Detected"
+const MOBILE_CLEAR_MS = 700; // Continuous absence to clear "Mobile Detected"
+
+// Configurable Eye Direction / Looking Away timings
+const LOOKING_AWAY_CONFIRMATION_MS = 1500; // Continuous deviation to confirm "Looking Away"
+const LOOKING_AT_SCREEN_CONFIRMATION_MS = 350; // Continuous return to confirm "Looking at Screen"
+
 // MediaPipe 468/478 Face Mesh landmark indices for Eye Aspect Ratio (EAR)
-// Left eye landmarks (subject's perspective)
 const LEFT_EYE_LANDMARKS = {
   p1: 33, // Outer corner
   p2: 160, // Upper eyelid outer
@@ -35,7 +44,6 @@ const LEFT_EYE_LANDMARKS = {
   p6: 144, // Lower eyelid outer
 };
 
-// Right eye landmarks (subject's perspective)
 const RIGHT_EYE_LANDMARKS = {
   p1: 362, // Inner corner
   p2: 385, // Upper eyelid inner
@@ -52,12 +60,12 @@ const RIGHT_EYE_CONTOUR = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388
 const cameraMessages = {
   "camera-off": "Camera is off. Enable it whenever you are ready to study.",
   starting: "Your browser is requesting camera permission.",
-  active: "Camera active. Focus and eye monitoring run privately in this browser.",
+  active: "Camera active. Private on-device neural monitoring running locally.",
 };
 
 const faceMessages = {
   off: "Face monitoring starts when the camera is active.",
-  initializing: "Loading on-device face & eye landmarker...",
+  initializing: "Loading on-device neural landmark models...",
   detected: "Face detected in camera view.",
   "not-detected": "No face detected. Move back into the camera view when you are ready.",
   error: "Face landmarker encountered an issue. Camera preview remains active.",
@@ -82,6 +90,20 @@ const focusMessages = {
   paused: "Study focus monitoring paused while face or camera is unavailable.",
 };
 
+const mobileMessages = {
+  "no-mobile": "No mobile device detected in camera field.",
+  "mobile-detected": "Mobile phone visible in camera view. Put phone away to maintain focus.",
+  unavailable: "Mobile detection initializing or unavailable.",
+  paused: "Mobile detection paused while camera is inactive.",
+};
+
+const eyeDirectionMessages = {
+  "looking-at-screen": "Gaze and head orientation aligned with study screen.",
+  "looking-away": "Head or gaze turned away from screen for an extended period.",
+  unknown: "Eye direction monitoring unavailable.",
+  paused: "Eye direction paused while face or camera is unavailable.",
+};
+
 function distance2D(p1, p2) {
   return Math.hypot(p1.x - p2.x, p1.y - p2.y);
 }
@@ -89,8 +111,6 @@ function distance2D(p1, p2) {
 /**
  * Calculates normalized Eye Aspect Ratio (EAR) from 6 landmark points:
  * EAR = (||p2 - p6|| + ||p3 - p5||) / (2 * ||p1 - p4||)
- * Based on normalized coordinates, independent of camera resolution.
- * Note: This is an experimental study-focus indicator, not a medical measurement.
  */
 function calculateEAR(landmarks, eye) {
   if (!landmarks || !landmarks[eye.p1] || !landmarks[eye.p4]) {
@@ -113,6 +133,44 @@ function calculateEAR(landmarks, eye) {
   }
 
   return (vertical1 + vertical2) / (2.0 * horizontal);
+}
+
+/**
+ * Determines whether head orientation / gaze is directed at the screen or looking away.
+ * Uses 3D landmark geometric proportions (nose index 1, left cheek 234, right cheek 454, forehead 10, chin 152).
+ */
+function calculateLookingAway(landmarks) {
+  if (!landmarks || !landmarks[1] || !landmarks[234] || !landmarks[454]) {
+    return null;
+  }
+
+  const nose = landmarks[1];
+  const leftCheek = landmarks[234];
+  const rightCheek = landmarks[454];
+
+  const distLeft = distance2D(nose, leftCheek);
+  const distRight = distance2D(nose, rightCheek);
+  const totalX = distLeft + distRight;
+
+  if (totalX <= 0.0001) return false;
+
+  const yawRatio = distLeft / totalX;
+
+  let pitchRatio = 0.5;
+  if (landmarks[10] && landmarks[152]) {
+    const distTop = distance2D(nose, landmarks[10]);
+    const distBottom = distance2D(nose, landmarks[152]);
+    const totalY = distTop + distBottom;
+    if (totalY > 0.0001) {
+      pitchRatio = distTop / totalY;
+    }
+  }
+
+  // Neutral forward looking: yawRatio ~0.50 (normal range: 0.33 to 0.67), pitchRatio ~0.50 (normal range: 0.28 to 0.72)
+  const isTurnedHorizontally = yawRatio < 0.31 || yawRatio > 0.69;
+  const isTurnedVertically = pitchRatio < 0.26 || pitchRatio > 0.74;
+
+  return isTurnedHorizontally || isTurnedVertically;
 }
 
 function getCameraErrorMessage(error) {
@@ -147,32 +205,44 @@ function getCameraErrorMessage(error) {
   }
 }
 
-function CameraMonitor() {
+function CameraMonitor({ onStatusUpdate }) {
   const videoRef = useRef(null);
   const faceCanvasRef = useRef(null);
   const streamRef = useRef(null);
   const landmarkerRef = useRef(null);
+  const objectDetectorRef = useRef(null);
   const animationFrameRef = useRef(null);
   const lastDetectionTimeRef = useRef(0);
+  const lastObjectDetectionTimeRef = useRef(0);
   const detectionActiveRef = useRef(false);
   const cameraRunIdRef = useRef(0);
   const mountedRef = useRef(true);
 
-  // Status refs to avoid unnecessary re-renders & race conditions
+  // Status refs
   const faceStatusRef = useRef("off");
   const eyeStatusRef = useRef("eyes-unknown");
   const drowsinessStatusRef = useRef("paused");
   const focusStatusRef = useRef("paused");
+  const mobileStatusRef = useRef("paused");
+  const eyeDirectionStatusRef = useRef("paused");
   const consecutiveMissedFramesRef = useRef(0);
 
-  // Temporal stability timing refs (Milestone 4 & 5)
-  const earCandidateStateRef = useRef(null); // 'open' | 'closed' | null
+  // Temporal stability timing refs
+  const earCandidateStateRef = useRef(null);
   const earCandidateStartTimeRef = useRef(0);
   const continuousClosedStartTimeRef = useRef(null);
 
-  const focusCandidateStateRef = useRef("paused"); // 'focused' | 'attention-reduced' | 'paused'
+  const focusCandidateStateRef = useRef("paused");
   const focusCandidateStartTimeRef = useRef(0);
 
+  const mobileCandidateStateRef = useRef("no-mobile");
+  const mobileCandidateStartTimeRef = useRef(0);
+  const detectedMobileBoxesRef = useRef([]);
+
+  const eyeDirectionCandidateStateRef = useRef("looking-at-screen");
+  const eyeDirectionCandidateStartTimeRef = useRef(0);
+
+  // State hooks for UI
   const [cameraStatus, setCameraStatus] = useState("camera-off");
   const [cameraMessage, setCameraMessage] = useState(cameraMessages["camera-off"]);
   const [faceStatus, setFaceStatus] = useState("off");
@@ -183,34 +253,73 @@ function CameraMonitor() {
   const [drowsinessMessage, setDrowsinessMessage] = useState(drowsinessMessages.paused);
   const [focusStatus, setFocusStatus] = useState("paused");
   const [focusMessage, setFocusMessage] = useState(focusMessages.paused);
+  const [mobileStatus, setMobileStatus] = useState("paused");
+  const [mobileMessage, setMobileMessage] = useState(mobileMessages.paused);
+  const [eyeDirectionStatus, setEyeDirectionStatus] = useState("paused");
+  const [eyeDirectionMessage, setEyeDirectionMessage] = useState(eyeDirectionMessages.paused);
+
+  // Broadcast unified status changes to parent
+  const notifyStatusChange = useCallback(() => {
+    if (onStatusUpdate) {
+      onStatusUpdate({
+        cameraStatus: cameraStatus,
+        faceStatus: faceStatusRef.current,
+        eyeStatus: eyeStatusRef.current,
+        drowsinessStatus: drowsinessStatusRef.current,
+        focusStatus: focusStatusRef.current,
+        mobileStatus: mobileStatusRef.current,
+        eyeDirectionStatus: eyeDirectionStatusRef.current,
+      });
+    }
+  }, [cameraStatus, onStatusUpdate]);
 
   const updateFaceStatus = useCallback((status, message) => {
     if (faceStatusRef.current === status) return;
     faceStatusRef.current = status;
     setFaceStatus(status);
     setFaceMessage(message || faceMessages[status] || "");
-  }, []);
+    notifyStatusChange();
+  }, [notifyStatusChange]);
 
   const updateEyeStatus = useCallback((status, message) => {
     if (eyeStatusRef.current === status) return;
     eyeStatusRef.current = status;
     setEyeStatus(status);
     setEyeMessage(message || eyeMessages[status] || "");
-  }, []);
+    notifyStatusChange();
+  }, [notifyStatusChange]);
 
   const updateDrowsinessStatus = useCallback((status, message) => {
     if (drowsinessStatusRef.current === status) return;
     drowsinessStatusRef.current = status;
     setDrowsinessStatus(status);
     setDrowsinessMessage(message || drowsinessMessages[status] || "");
-  }, []);
+    notifyStatusChange();
+  }, [notifyStatusChange]);
 
   const updateFocusStatus = useCallback((status, message) => {
     if (focusStatusRef.current === status) return;
     focusStatusRef.current = status;
     setFocusStatus(status);
     setFocusMessage(message || focusMessages[status] || "");
-  }, []);
+    notifyStatusChange();
+  }, [notifyStatusChange]);
+
+  const updateMobileStatus = useCallback((status, message) => {
+    if (mobileStatusRef.current === status) return;
+    mobileStatusRef.current = status;
+    setMobileStatus(status);
+    setMobileMessage(message || mobileMessages[status] || "");
+    notifyStatusChange();
+  }, [notifyStatusChange]);
+
+  const updateEyeDirectionStatus = useCallback((status, message) => {
+    if (eyeDirectionStatusRef.current === status) return;
+    eyeDirectionStatusRef.current = status;
+    setEyeDirectionStatus(status);
+    setEyeDirectionMessage(message || eyeDirectionMessages[status] || "");
+    notifyStatusChange();
+  }, [notifyStatusChange]);
 
   const resetTemporalTracking = useCallback(() => {
     earCandidateStateRef.current = null;
@@ -218,9 +327,14 @@ function CameraMonitor() {
     continuousClosedStartTimeRef.current = null;
     focusCandidateStateRef.current = "paused";
     focusCandidateStartTimeRef.current = 0;
+    mobileCandidateStateRef.current = "no-mobile";
+    mobileCandidateStartTimeRef.current = 0;
+    detectedMobileBoxesRef.current = [];
+    eyeDirectionCandidateStateRef.current = "looking-at-screen";
+    eyeDirectionCandidateStartTimeRef.current = 0;
   }, []);
 
-  const clearFaceOverlay = useCallback(() => {
+  const clearCanvasOverlay = useCallback(() => {
     const canvas = faceCanvasRef.current;
     const context = canvas?.getContext("2d");
     if (canvas && context) {
@@ -228,11 +342,11 @@ function CameraMonitor() {
     }
   }, []);
 
-  const drawLandmarkOverlay = useCallback((landmarks) => {
+  const drawCombinedOverlay = useCallback((landmarks, mobileBoxes) => {
     const canvas = faceCanvasRef.current;
     const video = videoRef.current;
 
-    if (!canvas || !video || !landmarks || !video.videoWidth || !video.videoHeight) {
+    if (!canvas || !video || !video.videoWidth || !video.videoHeight) {
       return;
     }
 
@@ -246,43 +360,72 @@ function CameraMonitor() {
 
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw subtle contours around eyes
-    const drawContour = (indices, strokeColor, fillColor) => {
-      if (!indices || indices.length === 0) return;
-      context.beginPath();
-      const first = landmarks[indices[0]];
-      context.moveTo(first.x * canvas.width, first.y * canvas.height);
+    // 1. Draw eye contours if face landmarks available
+    if (landmarks && landmarks.length >= 468) {
+      const drawContour = (indices, strokeColor, fillColor) => {
+        if (!indices || indices.length === 0) return;
+        context.beginPath();
+        const first = landmarks[indices[0]];
+        context.moveTo(first.x * canvas.width, first.y * canvas.height);
 
-      for (let i = 1; i < indices.length; i++) {
-        const pt = landmarks[indices[i]];
-        if (pt) {
-          context.lineTo(pt.x * canvas.width, pt.y * canvas.height);
+        for (let i = 1; i < indices.length; i++) {
+          const pt = landmarks[indices[i]];
+          if (pt) {
+            context.lineTo(pt.x * canvas.width, pt.y * canvas.height);
+          }
         }
-      }
-      context.closePath();
-      context.strokeStyle = strokeColor;
-      context.lineWidth = 1.5;
-      context.fillStyle = fillColor;
-      context.fill();
-      context.stroke();
-    };
+        context.closePath();
+        context.strokeStyle = strokeColor;
+        context.lineWidth = 1.5;
+        context.fillStyle = fillColor;
+        context.fill();
+        context.stroke();
+      };
 
-    const eyeHighlightColor =
-      eyeStatusRef.current === "eyes-closed"
-        ? "rgba(223, 172, 52, 0.85)"
-        : "rgba(117, 227, 174, 0.85)";
-    const eyeFillColor =
-      eyeStatusRef.current === "eyes-closed"
-        ? "rgba(223, 172, 52, 0.15)"
-        : "rgba(117, 227, 174, 0.12)";
+      const eyeHighlightColor =
+        eyeStatusRef.current === "eyes-closed"
+          ? "rgba(223, 172, 52, 0.85)"
+          : "rgba(117, 227, 174, 0.85)";
+      const eyeFillColor =
+        eyeStatusRef.current === "eyes-closed"
+          ? "rgba(223, 172, 52, 0.15)"
+          : "rgba(117, 227, 174, 0.12)";
 
-    drawContour(LEFT_EYE_CONTOUR, eyeHighlightColor, eyeFillColor);
-    drawContour(RIGHT_EYE_CONTOUR, eyeHighlightColor, eyeFillColor);
+      drawContour(LEFT_EYE_CONTOUR, eyeHighlightColor, eyeFillColor);
+      drawContour(RIGHT_EYE_CONTOUR, eyeHighlightColor, eyeFillColor);
+    }
+
+    // 2. Draw mobile phone bounding box overlay if detected
+    if (mobileBoxes && mobileBoxes.length > 0 && mobileStatusRef.current === "mobile-detected") {
+      mobileBoxes.forEach((box) => {
+        context.strokeStyle = "rgba(239, 68, 68, 0.9)";
+        context.lineWidth = 2.5;
+        context.fillStyle = "rgba(239, 68, 68, 0.12)";
+
+        const bx = box.originX;
+        const by = box.originY;
+        const bw = box.width;
+        const bh = box.height;
+
+        context.fillRect(bx, by, bw, bh);
+        context.strokeRect(bx, by, bw, bh);
+
+        // Label tag
+        context.fillStyle = "rgba(220, 38, 38, 0.9)";
+        context.font = "bold 12px Inter, sans-serif";
+        const text = "📱 Mobile Detected";
+        const textWidth = context.measureText(text).width;
+        context.fillRect(bx, Math.max(0, by - 22), textWidth + 12, 22);
+        context.fillStyle = "#ffffff";
+        context.fillText(text, bx + 6, Math.max(15, by - 6));
+      });
+    }
   }, []);
 
   const stopVisionProcessing = useCallback(() => {
     detectionActiveRef.current = false;
     lastDetectionTimeRef.current = 0;
+    lastObjectDetectionTimeRef.current = 0;
     consecutiveMissedFramesRef.current = 0;
     resetTemporalTracking();
 
@@ -293,8 +436,10 @@ function CameraMonitor() {
 
     landmarkerRef.current?.close();
     landmarkerRef.current = null;
-    clearFaceOverlay();
-  }, [clearFaceOverlay, resetTemporalTracking]);
+    objectDetectorRef.current?.close();
+    objectDetectorRef.current = null;
+    clearCanvasOverlay();
+  }, [clearCanvasOverlay, resetTemporalTracking]);
 
   const stopStream = useCallback(() => {
     stopVisionProcessing();
@@ -308,14 +453,9 @@ function CameraMonitor() {
 
   /**
    * Evaluates Study Focus state from current face, eye, and drowsiness signals.
-   * Priority:
-   * 1. Face/camera/eye missing -> 'paused' (Monitoring Paused)
-   * 2. Drowsiness Suspected or extended eye closure -> 'attention-reduced' (Attention Reduced)
-   * 3. Stably open and alert -> 'focused' (Focused)
    */
   const evaluateFocusState = useCallback(
     (now, currentEyeState, currentDrowsinessState) => {
-      // 1. Paused condition check
       if (
         faceStatusRef.current !== "detected" ||
         currentEyeState === "eyes-unknown" ||
@@ -327,7 +467,6 @@ function CameraMonitor() {
         return;
       }
 
-      // 2. Determine target focus state based on deterministic priority
       let targetState = "focused";
       if (
         currentDrowsinessState === "drowsiness-suspected" ||
@@ -338,7 +477,6 @@ function CameraMonitor() {
         targetState = "focused";
       }
 
-      // 3. Temporal debounce / confirmation check
       if (focusCandidateStateRef.current !== targetState) {
         focusCandidateStateRef.current = targetState;
         focusCandidateStartTimeRef.current = now;
@@ -375,7 +513,6 @@ function CameraMonitor() {
         return;
       }
 
-      // Determine raw instantaneous frame classification
       let instantaneousState = null;
       if (averageEAR >= EYE_OPEN_EAR_THRESHOLD) {
         instantaneousState = "open";
@@ -397,7 +534,6 @@ function CameraMonitor() {
       let nextDrowsinessState = drowsinessStatusRef.current;
 
       if (candidateState === "closed" && candidateElapsed >= EYE_CLOSED_CONFIRMATION_MS) {
-        // Confirmed stable Eyes Closed state
         nextEyeState = "eyes-closed";
         updateEyeStatus("eyes-closed");
 
@@ -414,7 +550,6 @@ function CameraMonitor() {
           updateDrowsinessStatus("eyes-closed");
         }
       } else if (candidateState === "open" && candidateElapsed >= EYE_OPEN_CONFIRMATION_MS) {
-        // Confirmed stable Eyes Open state
         nextEyeState = "eyes-open";
         updateEyeStatus("eyes-open");
         continuousClosedStartTimeRef.current = null;
@@ -422,10 +557,62 @@ function CameraMonitor() {
         updateDrowsinessStatus("alert");
       }
 
-      // Evaluate Study Focus from updated state
       evaluateFocusState(now, nextEyeState, nextDrowsinessState);
     },
     [evaluateFocusState, resetTemporalTracking, updateDrowsinessStatus, updateEyeStatus],
+  );
+
+  /**
+   * Process Eye Direction / Head Gaze with temporal debounce.
+   */
+  const processEyeDirectionStability = useCallback(
+    (isLookingAwayRaw, now) => {
+      if (isLookingAwayRaw === null || faceStatusRef.current !== "detected") {
+        updateEyeDirectionStatus("paused");
+        return;
+      }
+
+      const target = isLookingAwayRaw ? "looking-away" : "looking-at-screen";
+
+      if (eyeDirectionCandidateStateRef.current !== target) {
+        eyeDirectionCandidateStateRef.current = target;
+        eyeDirectionCandidateStartTimeRef.current = now;
+      }
+
+      const elapsed = now - eyeDirectionCandidateStartTimeRef.current;
+
+      if (target === "looking-away" && elapsed >= LOOKING_AWAY_CONFIRMATION_MS) {
+        updateEyeDirectionStatus("looking-away");
+      } else if (target === "looking-at-screen" && elapsed >= LOOKING_AT_SCREEN_CONFIRMATION_MS) {
+        updateEyeDirectionStatus("looking-at-screen");
+      }
+    },
+    [updateEyeDirectionStatus],
+  );
+
+  /**
+   * Process Mobile Phone Object Detection with temporal debounce.
+   */
+  const processMobileStability = useCallback(
+    (hasMobileRaw, boxes, now) => {
+      detectedMobileBoxesRef.current = boxes || [];
+
+      const target = hasMobileRaw ? "mobile-detected" : "no-mobile";
+
+      if (mobileCandidateStateRef.current !== target) {
+        mobileCandidateStateRef.current = target;
+        mobileCandidateStartTimeRef.current = now;
+      }
+
+      const elapsed = now - mobileCandidateStartTimeRef.current;
+
+      if (target === "mobile-detected" && elapsed >= MOBILE_CONFIRMATION_MS) {
+        updateMobileStatus("mobile-detected");
+      } else if (target === "no-mobile" && elapsed >= MOBILE_CLEAR_MS) {
+        updateMobileStatus("no-mobile");
+      }
+    },
+    [updateMobileStatus],
   );
 
   const startVisionProcessing = useCallback(
@@ -437,36 +624,57 @@ function CameraMonitor() {
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
       updateFocusStatus("paused");
+      updateMobileStatus("unavailable");
+      updateEyeDirectionStatus("unknown");
 
-      let landmarker;
+      let landmarker = null;
+      let objectDetector = null;
 
       try {
-        const { FaceLandmarker, FilesetResolver } = await import(
+        const { FaceLandmarker, ObjectDetector, FilesetResolver } = await import(
           /* @vite-ignore */ MEDIAPIPE_VISION_URL
         );
         const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
-        landmarker = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: FACE_LANDMARKER_MODEL_URL,
-          },
-          runningMode: "VIDEO",
-          numFaces: 1,
-          minFaceDetectionConfidence: 0.5,
-          minFacePresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-          outputFaceBlendshapes: false,
-          outputFacialTransformationMatrixes: false,
-        });
+
+        // Load FaceLandmarker and ObjectDetector concurrently
+        const [loadedLandmarker, loadedObjectDetector] = await Promise.all([
+          FaceLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL },
+            runningMode: "VIDEO",
+            numFaces: 1,
+            minFaceDetectionConfidence: 0.5,
+            minFacePresenceConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+            outputFaceBlendshapes: false,
+            outputFacialTransformationMatrixes: false,
+          }),
+          ObjectDetector.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: OBJECT_DETECTOR_MODEL_URL },
+            scoreThreshold: 0.38,
+            runningMode: "VIDEO",
+          }).catch((err) => {
+            console.warn("MediaPipe ObjectDetector load error:", err);
+            return null;
+          }),
+        ]);
+
+        landmarker = loadedLandmarker;
+        objectDetector = loadedObjectDetector;
 
         if (!mountedRef.current || cameraRunIdRef.current !== cameraRunId) {
-          landmarker.close();
+          landmarker?.close();
+          objectDetector?.close();
           return;
         }
 
         landmarkerRef.current = landmarker;
+        objectDetectorRef.current = objectDetector;
         detectionActiveRef.current = true;
         consecutiveMissedFramesRef.current = 0;
         resetTemporalTracking();
+        updateMobileStatus("no-mobile");
+
+        let lastLandmarks = null;
 
         const processFrame = (timestamp) => {
           if (
@@ -488,79 +696,126 @@ function CameraMonitor() {
             return;
           }
 
+          const now = performance.now();
+
+          // 1. Face & Eye Landmarker loop (Every 100ms)
           if (timestamp - lastDetectionTimeRef.current >= DETECTION_INTERVAL_MS) {
             lastDetectionTimeRef.current = timestamp;
 
             try {
-              const now = performance.now();
-              const result = landmarkerRef.current.detectForVideo(activeVideo, now);
-              const landmarks = result.faceLandmarks?.[0];
+              if (landmarkerRef.current) {
+                const result = landmarkerRef.current.detectForVideo(activeVideo, now);
+                const landmarks = result.faceLandmarks?.[0];
+                lastLandmarks = landmarks;
 
-              if (landmarks && landmarks.length >= 468) {
-                consecutiveMissedFramesRef.current = 0;
-                updateFaceStatus("detected");
-                drawLandmarkOverlay(landmarks);
+                if (landmarks && landmarks.length >= 468) {
+                  consecutiveMissedFramesRef.current = 0;
+                  updateFaceStatus("detected");
 
-                // Compute EAR for left and right eyes
-                const leftEAR = calculateEAR(landmarks, LEFT_EYE_LANDMARKS);
-                const rightEAR = calculateEAR(landmarks, RIGHT_EYE_LANDMARKS);
+                  // Compute EAR for eyes
+                  const leftEAR = calculateEAR(landmarks, LEFT_EYE_LANDMARKS);
+                  const rightEAR = calculateEAR(landmarks, RIGHT_EYE_LANDMARKS);
 
-                if (leftEAR !== null && rightEAR !== null) {
-                  const averageEAR = (leftEAR + rightEAR) / 2.0;
-                  processEyeStability(averageEAR, now);
+                  if (leftEAR !== null && rightEAR !== null) {
+                    const averageEAR = (leftEAR + rightEAR) / 2.0;
+                    processEyeStability(averageEAR, now);
+                  } else {
+                    processEyeStability(null, now);
+                  }
+
+                  // Compute Looking Away / Gaze orientation
+                  const isLookingAway = calculateLookingAway(landmarks);
+                  processEyeDirectionStability(isLookingAway, now);
                 } else {
-                  processEyeStability(null, now);
-                }
-              } else {
-                clearFaceOverlay();
-                consecutiveMissedFramesRef.current += 1;
+                  consecutiveMissedFramesRef.current += 1;
 
-                if (consecutiveMissedFramesRef.current >= MISSED_FRAMES_THRESHOLD) {
-                  // Face absent: pause eye and focus monitoring, never count as eyes closed
-                  updateFaceStatus("not-detected");
-                  updateEyeStatus("eyes-unknown");
-                  updateDrowsinessStatus("paused");
-                  updateFocusStatus("paused");
-                  resetTemporalTracking();
+                  if (consecutiveMissedFramesRef.current >= MISSED_FRAMES_THRESHOLD) {
+                    updateFaceStatus("not-detected");
+                    updateEyeStatus("eyes-unknown");
+                    updateDrowsinessStatus("paused");
+                    updateFocusStatus("paused");
+                    updateEyeDirectionStatus("paused");
+                    resetTemporalTracking();
+                  }
                 }
               }
             } catch (err) {
               console.error("Face landmarker processing error:", err);
-              stopVisionProcessing();
-              updateFaceStatus("error");
-              updateEyeStatus("eyes-unknown");
-              updateDrowsinessStatus("paused");
-              updateFocusStatus("paused");
-              return;
             }
           }
+
+          // 2. Mobile Object Detector loop (Throttled every 250ms)
+          if (timestamp - lastObjectDetectionTimeRef.current >= OBJECT_DETECTION_INTERVAL_MS) {
+            lastObjectDetectionTimeRef.current = timestamp;
+
+            try {
+              if (objectDetectorRef.current) {
+                const objectResult = objectDetectorRef.current.detectForVideo(activeVideo, now);
+                const detections = objectResult.detections || [];
+
+                const phoneBoxes = [];
+                let phoneDetected = false;
+
+                for (const detection of detections) {
+                  const categories = detection.categories || [];
+                  const isPhone = categories.some((c) => {
+                    const name = c.categoryName.toLowerCase();
+                    return (
+                      (name.includes("cell phone") ||
+                        name.includes("mobile") ||
+                        name.includes("telephone") ||
+                        name.includes("phone")) &&
+                      c.score >= 0.35
+                    );
+                  });
+
+                  if (isPhone && detection.boundingBox) {
+                    phoneDetected = true;
+                    phoneBoxes.push(detection.boundingBox);
+                  }
+                }
+
+                processMobileStability(phoneDetected, phoneBoxes, now);
+              }
+            } catch (err) {
+              console.warn("Object detector processing error:", err);
+            }
+          }
+
+          // 3. Render combined overlays
+          drawCombinedOverlay(lastLandmarks, detectedMobileBoxesRef.current);
 
           animationFrameRef.current = requestAnimationFrame(processFrame);
         };
 
         animationFrameRef.current = requestAnimationFrame(processFrame);
       } catch (err) {
-        console.error("MediaPipe FaceLandmarker initialization error:", err);
+        console.error("MediaPipe vision initialization error:", err);
         landmarker?.close();
+        objectDetector?.close();
 
         if (mountedRef.current && cameraRunIdRef.current === cameraRunId) {
           updateFaceStatus("error");
           updateEyeStatus("eyes-unknown");
           updateDrowsinessStatus("paused");
           updateFocusStatus("paused");
+          updateMobileStatus("unavailable");
+          updateEyeDirectionStatus("unknown");
         }
       }
     },
     [
-      clearFaceOverlay,
-      drawLandmarkOverlay,
+      drawCombinedOverlay,
+      processEyeDirectionStability,
       processEyeStability,
+      processMobileStability,
       resetTemporalTracking,
-      stopVisionProcessing,
       updateDrowsinessStatus,
+      updateEyeDirectionStatus,
       updateEyeStatus,
       updateFaceStatus,
       updateFocusStatus,
+      updateMobileStatus,
     ],
   );
 
@@ -573,7 +828,17 @@ function CameraMonitor() {
     updateEyeStatus("eyes-unknown");
     updateDrowsinessStatus("paused");
     updateFocusStatus("paused");
-  }, [stopStream, updateDrowsinessStatus, updateEyeStatus, updateFaceStatus, updateFocusStatus]);
+    updateMobileStatus("paused");
+    updateEyeDirectionStatus("paused");
+  }, [
+    stopStream,
+    updateDrowsinessStatus,
+    updateEyeDirectionStatus,
+    updateEyeStatus,
+    updateFaceStatus,
+    updateFocusStatus,
+    updateMobileStatus,
+  ]);
 
   const enableCamera = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -585,6 +850,8 @@ function CameraMonitor() {
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
       updateFocusStatus("paused");
+      updateMobileStatus("paused");
+      updateEyeDirectionStatus("paused");
       return;
     }
 
@@ -597,6 +864,8 @@ function CameraMonitor() {
     updateEyeStatus("eyes-unknown");
     updateDrowsinessStatus("paused");
     updateFocusStatus("paused");
+    updateMobileStatus("unavailable");
+    updateEyeDirectionStatus("unknown");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -634,6 +903,8 @@ function CameraMonitor() {
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
       updateFocusStatus("paused");
+      updateMobileStatus("paused");
+      updateEyeDirectionStatus("paused");
     }
   };
 
@@ -658,7 +929,7 @@ function CameraMonitor() {
           <h2 id="camera-title" className="section-title">Camera & Attention Monitor</h2>
         </div>
         <p className="section-desc">
-          High-frequency on-device neural landmark analysis with temporal debounce stability.
+          High-frequency on-device neural landmark, eye openness, gaze, and mobile detection running in a single video stream.
         </p>
       </div>
 
@@ -708,7 +979,7 @@ function CameraMonitor() {
                   </svg>
                 </div>
                 <strong>Camera is currently inactive</strong>
-                <p>Activate your webcam to initiate private on-device focus tracking.</p>
+                <p>Activate your webcam to initiate private on-device focus and alert tracking.</p>
               </div>
             )}
           </div>
@@ -771,28 +1042,67 @@ function CameraMonitor() {
               <p className="status-card-desc">{focusMessage}</p>
             </div>
 
-            {/* 2. FACE DETECTION CARD */}
-            <div className={`status-card face-${faceStatus}`}>
+            {/* 2. DROWSINESS MONITOR CARD */}
+            <div className={`status-card drowsiness-${drowsinessStatus}`}>
               <div className="status-card-top">
                 <div className="status-card-label">
-                  <span className="status-icon-indicator" aria-hidden="true">👤</span>
-                  <span>FACE PRESENCE</span>
+                  <span className="status-icon-indicator" aria-hidden="true">😴</span>
+                  <span>DROWSINESS STATE</span>
                 </div>
-                <div className={`status-pill ${faceStatus}`} role="status" aria-live="polite">
+                <div className={`status-pill ${drowsinessStatus}`} role="status" aria-live="polite">
                   <span className="status-dot" aria-hidden="true" />
                   <span>
-                    {faceStatus === "off" && "Monitoring Off"}
-                    {faceStatus === "initializing" && "Initializing Mesh"}
-                    {faceStatus === "detected" && "Face Detected"}
-                    {faceStatus === "not-detected" && "Not Detected"}
-                    {faceStatus === "error" && "Error"}
+                    {drowsinessStatus === "alert" && "Alert"}
+                    {drowsinessStatus === "eyes-closed" && "Eyes Closed"}
+                    {drowsinessStatus === "drowsiness-suspected" && "Drowsiness Suspected"}
+                    {drowsinessStatus === "paused" && "Monitoring Paused"}
                   </span>
                 </div>
               </div>
-              <p className="status-card-desc">{faceMessage}</p>
+              <p className="status-card-desc">{drowsinessMessage}</p>
             </div>
 
-            {/* 3. EYE TRACKING CARD */}
+            {/* 3. MOBILE PHONE DETECTION CARD */}
+            <div className={`status-card mobile-${mobileStatus}`}>
+              <div className="status-card-top">
+                <div className="status-card-label">
+                  <span className="status-icon-indicator" aria-hidden="true">📱</span>
+                  <span>MOBILE PHONE</span>
+                </div>
+                <div className={`status-pill ${mobileStatus}`} role="status" aria-live="polite">
+                  <span className="status-dot" aria-hidden="true" />
+                  <span>
+                    {mobileStatus === "no-mobile" && "No Mobile Detected"}
+                    {mobileStatus === "mobile-detected" && "Mobile Detected"}
+                    {mobileStatus === "unavailable" && "Detection Unavailable"}
+                    {mobileStatus === "paused" && "Monitoring Paused"}
+                  </span>
+                </div>
+              </div>
+              <p className="status-card-desc">{mobileMessage}</p>
+            </div>
+
+            {/* 4. EYE DIRECTION / LOOKING AWAY CARD */}
+            <div className={`status-card eye-dir-${eyeDirectionStatus}`}>
+              <div className="status-card-top">
+                <div className="status-card-label">
+                  <span className="status-icon-indicator" aria-hidden="true">👀</span>
+                  <span>EYE DIRECTION</span>
+                </div>
+                <div className={`status-pill ${eyeDirectionStatus}`} role="status" aria-live="polite">
+                  <span className="status-dot" aria-hidden="true" />
+                  <span>
+                    {eyeDirectionStatus === "looking-at-screen" && "Looking at Screen"}
+                    {eyeDirectionStatus === "looking-away" && "Looking Away"}
+                    {eyeDirectionStatus === "unknown" && "Eye Direction Unknown"}
+                    {eyeDirectionStatus === "paused" && "Monitoring Paused"}
+                  </span>
+                </div>
+              </div>
+              <p className="status-card-desc">{eyeDirectionMessage}</p>
+            </div>
+
+            {/* 5. EYE APERTURE CARD */}
             <div className={`status-card eye-${eyeStatus}`}>
               <div className="status-card-top">
                 <div className="status-card-label">
@@ -811,24 +1121,25 @@ function CameraMonitor() {
               <p className="status-card-desc">{eyeMessage}</p>
             </div>
 
-            {/* 4. DROWSINESS MONITOR CARD */}
-            <div className={`status-card drowsiness-${drowsinessStatus}`}>
+            {/* 6. FACE PRESENCE CARD */}
+            <div className={`status-card face-${faceStatus}`}>
               <div className="status-card-top">
                 <div className="status-card-label">
-                  <span className="status-icon-indicator" aria-hidden="true">⚡</span>
-                  <span>DROWSINESS STATE</span>
+                  <span className="status-icon-indicator" aria-hidden="true">👤</span>
+                  <span>FACE PRESENCE</span>
                 </div>
-                <div className={`status-pill ${drowsinessStatus}`} role="status" aria-live="polite">
+                <div className={`status-pill ${faceStatus}`} role="status" aria-live="polite">
                   <span className="status-dot" aria-hidden="true" />
                   <span>
-                    {drowsinessStatus === "alert" && "Alert"}
-                    {drowsinessStatus === "eyes-closed" && "Eyes Closed"}
-                    {drowsinessStatus === "drowsiness-suspected" && "Drowsiness Suspected"}
-                    {drowsinessStatus === "paused" && "Monitoring Paused"}
+                    {faceStatus === "off" && "Monitoring Off"}
+                    {faceStatus === "initializing" && "Initializing Mesh"}
+                    {faceStatus === "detected" && "Face Detected"}
+                    {faceStatus === "not-detected" && "Not Detected"}
+                    {faceStatus === "error" && "Error"}
                   </span>
                 </div>
               </div>
-              <p className="status-card-desc">{drowsinessMessage}</p>
+              <p className="status-card-desc">{faceMessage}</p>
             </div>
           </div>
 
