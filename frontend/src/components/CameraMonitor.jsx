@@ -12,12 +12,17 @@ const MISSED_FRAMES_THRESHOLD = 3;
 
 // Configurable EAR thresholds
 const EYE_OPEN_EAR_THRESHOLD = 0.21;
+
 const EYE_CLOSED_EAR_THRESHOLD = 0.17;
 
-// Configurable temporal stability / debounce timings
+// Configurable temporal stability / debounce timings (Milestone 4)
 const EYE_CLOSED_CONFIRMATION_MS = 350; // Continuous closed time to confirm "Eyes Closed"
 const EYE_OPEN_CONFIRMATION_MS = 200; // Continuous open time to confirm "Eyes Open"
 const DROWSINESS_CLOSED_DURATION_MS = 2000; // Continuous closed time to flag "Drowsiness Suspected"
+
+// Configurable Study Focus timings (Milestone 5)
+const FOCUS_CONFIRMATION_MS = 300; // Time in open/alert state before confirming "Focused"
+const ATTENTION_REDUCED_DELAY_MS = 500; // Time in closed/drowsy state before confirming "Attention Reduced"
 
 // MediaPipe 468/478 Face Mesh landmark indices for Eye Aspect Ratio (EAR)
 // Left eye landmarks (subject's perspective)
@@ -47,7 +52,7 @@ const RIGHT_EYE_CONTOUR = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388
 const cameraMessages = {
   "camera-off": "Camera is off. Enable it whenever you are ready to study.",
   starting: "Your browser is requesting camera permission.",
-  active: "Camera active. Eye and face monitoring run privately in this browser.",
+  active: "Camera active. Focus and eye monitoring run privately in this browser.",
 };
 
 const faceMessages = {
@@ -69,6 +74,12 @@ const drowsinessMessages = {
   "eyes-closed": "Eyes closed briefly.",
   "drowsiness-suspected": "Extended eye closure detected. Drowsiness suspected.",
   paused: "Drowsiness monitoring paused while face is not detected.",
+};
+
+const focusMessages = {
+  focused: "Visual study attention maintained with eyes open.",
+  "attention-reduced": "Visual attention reduced due to sustained eye closure.",
+  paused: "Study focus monitoring paused while face or camera is unavailable.",
 };
 
 function distance2D(p1, p2) {
@@ -151,12 +162,16 @@ function CameraMonitor() {
   const faceStatusRef = useRef("off");
   const eyeStatusRef = useRef("eyes-unknown");
   const drowsinessStatusRef = useRef("paused");
+  const focusStatusRef = useRef("paused");
   const consecutiveMissedFramesRef = useRef(0);
 
-  // Temporal stability timing refs
+  // Temporal stability timing refs (Milestone 4 & 5)
   const earCandidateStateRef = useRef(null); // 'open' | 'closed' | null
   const earCandidateStartTimeRef = useRef(0);
   const continuousClosedStartTimeRef = useRef(null);
+
+  const focusCandidateStateRef = useRef("paused"); // 'focused' | 'attention-reduced' | 'paused'
+  const focusCandidateStartTimeRef = useRef(0);
 
   const [cameraStatus, setCameraStatus] = useState("camera-off");
   const [cameraMessage, setCameraMessage] = useState(cameraMessages["camera-off"]);
@@ -166,6 +181,8 @@ function CameraMonitor() {
   const [eyeMessage, setEyeMessage] = useState(eyeMessages["eyes-unknown"]);
   const [drowsinessStatus, setDrowsinessStatus] = useState("paused");
   const [drowsinessMessage, setDrowsinessMessage] = useState(drowsinessMessages.paused);
+  const [focusStatus, setFocusStatus] = useState("paused");
+  const [focusMessage, setFocusMessage] = useState(focusMessages.paused);
 
   const updateFaceStatus = useCallback((status, message) => {
     if (faceStatusRef.current === status) return;
@@ -188,10 +205,19 @@ function CameraMonitor() {
     setDrowsinessMessage(message || drowsinessMessages[status] || "");
   }, []);
 
+  const updateFocusStatus = useCallback((status, message) => {
+    if (focusStatusRef.current === status) return;
+    focusStatusRef.current = status;
+    setFocusStatus(status);
+    setFocusMessage(message || focusMessages[status] || "");
+  }, []);
+
   const resetTemporalTracking = useCallback(() => {
     earCandidateStateRef.current = null;
     earCandidateStartTimeRef.current = 0;
     continuousClosedStartTimeRef.current = null;
+    focusCandidateStateRef.current = "paused";
+    focusCandidateStartTimeRef.current = 0;
   }, []);
 
   const clearFaceOverlay = useCallback(() => {
@@ -281,6 +307,62 @@ function CameraMonitor() {
   }, [stopVisionProcessing]);
 
   /**
+   * Evaluates Study Focus state from current face, eye, and drowsiness signals.
+   * Priority:
+   * 1. Face/camera/eye missing -> 'paused' (Monitoring Paused)
+   * 2. Drowsiness Suspected or extended eye closure -> 'attention-reduced' (Attention Reduced)
+   * 3. Stably open and alert -> 'focused' (Focused)
+   */
+  const evaluateFocusState = useCallback(
+    (now, currentEyeState, currentDrowsinessState) => {
+      // 1. Paused condition check
+      if (
+        faceStatusRef.current !== "detected" ||
+        currentEyeState === "eyes-unknown" ||
+        currentDrowsinessState === "paused"
+      ) {
+        focusCandidateStateRef.current = "paused";
+        focusCandidateStartTimeRef.current = now;
+        updateFocusStatus("paused");
+        return;
+      }
+
+      // 2. Determine target focus state based on deterministic priority
+      let targetState = "focused";
+      if (
+        currentDrowsinessState === "drowsiness-suspected" ||
+        currentEyeState === "eyes-closed"
+      ) {
+        targetState = "attention-reduced";
+      } else if (currentEyeState === "eyes-open" && currentDrowsinessState === "alert") {
+        targetState = "focused";
+      }
+
+      // 3. Temporal debounce / confirmation check
+      if (focusCandidateStateRef.current !== targetState) {
+        focusCandidateStateRef.current = targetState;
+        focusCandidateStartTimeRef.current = now;
+      }
+
+      const elapsed = now - focusCandidateStartTimeRef.current;
+
+      if (targetState === "attention-reduced") {
+        if (
+          currentDrowsinessState === "drowsiness-suspected" ||
+          elapsed >= ATTENTION_REDUCED_DELAY_MS
+        ) {
+          updateFocusStatus("attention-reduced");
+        }
+      } else if (targetState === "focused") {
+        if (elapsed >= FOCUS_CONFIRMATION_MS) {
+          updateFocusStatus("focused");
+        }
+      }
+    },
+    [updateFocusStatus],
+  );
+
+  /**
    * Process raw EAR measurements with temporal debounce / stability to avoid flickering.
    */
   const processEyeStability = useCallback(
@@ -288,6 +370,7 @@ function CameraMonitor() {
       if (averageEAR === null || isNaN(averageEAR)) {
         updateEyeStatus("eyes-unknown");
         updateDrowsinessStatus("paused");
+        evaluateFocusState(now, "eyes-unknown", "paused");
         resetTemporalTracking();
         return;
       }
@@ -310,8 +393,12 @@ function CameraMonitor() {
       const candidateState = earCandidateStateRef.current;
       const candidateElapsed = now - earCandidateStartTimeRef.current;
 
+      let nextEyeState = eyeStatusRef.current;
+      let nextDrowsinessState = drowsinessStatusRef.current;
+
       if (candidateState === "closed" && candidateElapsed >= EYE_CLOSED_CONFIRMATION_MS) {
         // Confirmed stable Eyes Closed state
+        nextEyeState = "eyes-closed";
         updateEyeStatus("eyes-closed");
 
         if (continuousClosedStartTimeRef.current === null) {
@@ -320,18 +407,25 @@ function CameraMonitor() {
 
         const continuousClosedDuration = now - continuousClosedStartTimeRef.current;
         if (continuousClosedDuration >= DROWSINESS_CLOSED_DURATION_MS) {
+          nextDrowsinessState = "drowsiness-suspected";
           updateDrowsinessStatus("drowsiness-suspected");
         } else {
+          nextDrowsinessState = "eyes-closed";
           updateDrowsinessStatus("eyes-closed");
         }
       } else if (candidateState === "open" && candidateElapsed >= EYE_OPEN_CONFIRMATION_MS) {
         // Confirmed stable Eyes Open state
+        nextEyeState = "eyes-open";
         updateEyeStatus("eyes-open");
         continuousClosedStartTimeRef.current = null;
+        nextDrowsinessState = "alert";
         updateDrowsinessStatus("alert");
       }
+
+      // Evaluate Study Focus from updated state
+      evaluateFocusState(now, nextEyeState, nextDrowsinessState);
     },
-    [resetTemporalTracking, updateDrowsinessStatus, updateEyeStatus],
+    [evaluateFocusState, resetTemporalTracking, updateDrowsinessStatus, updateEyeStatus],
   );
 
   const startVisionProcessing = useCallback(
@@ -342,6 +436,7 @@ function CameraMonitor() {
       updateFaceStatus("initializing");
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
+      updateFocusStatus("paused");
 
       let landmarker;
 
@@ -421,10 +516,11 @@ function CameraMonitor() {
                 consecutiveMissedFramesRef.current += 1;
 
                 if (consecutiveMissedFramesRef.current >= MISSED_FRAMES_THRESHOLD) {
-                  // Face absent: pause eye monitoring, never count as eyes closed
+                  // Face absent: pause eye and focus monitoring, never count as eyes closed
                   updateFaceStatus("not-detected");
                   updateEyeStatus("eyes-unknown");
                   updateDrowsinessStatus("paused");
+                  updateFocusStatus("paused");
                   resetTemporalTracking();
                 }
               }
@@ -434,6 +530,7 @@ function CameraMonitor() {
               updateFaceStatus("error");
               updateEyeStatus("eyes-unknown");
               updateDrowsinessStatus("paused");
+              updateFocusStatus("paused");
               return;
             }
           }
@@ -450,6 +547,7 @@ function CameraMonitor() {
           updateFaceStatus("error");
           updateEyeStatus("eyes-unknown");
           updateDrowsinessStatus("paused");
+          updateFocusStatus("paused");
         }
       }
     },
@@ -462,6 +560,7 @@ function CameraMonitor() {
       updateDrowsinessStatus,
       updateEyeStatus,
       updateFaceStatus,
+      updateFocusStatus,
     ],
   );
 
@@ -473,7 +572,8 @@ function CameraMonitor() {
     updateFaceStatus("off");
     updateEyeStatus("eyes-unknown");
     updateDrowsinessStatus("paused");
-  }, [stopStream, updateDrowsinessStatus, updateEyeStatus, updateFaceStatus]);
+    updateFocusStatus("paused");
+  }, [stopStream, updateDrowsinessStatus, updateEyeStatus, updateFaceStatus, updateFocusStatus]);
 
   const enableCamera = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -484,6 +584,7 @@ function CameraMonitor() {
       updateFaceStatus("error");
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
+      updateFocusStatus("paused");
       return;
     }
 
@@ -495,6 +596,7 @@ function CameraMonitor() {
     updateFaceStatus("off");
     updateEyeStatus("eyes-unknown");
     updateDrowsinessStatus("paused");
+    updateFocusStatus("paused");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -531,6 +633,7 @@ function CameraMonitor() {
       updateFaceStatus("off");
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
+      updateFocusStatus("paused");
     }
   };
 
@@ -636,6 +739,18 @@ function CameraMonitor() {
             <p className="status-note-message">{drowsinessMessage}</p>
           </div>
 
+          {/* STUDY FOCUS (MILESTONE 5) */}
+          <div className="status-sub-section focus-section">
+            <div className="status-label">STUDY FOCUS</div>
+            <div className={`focus-status ${focusStatus}`} role="status" aria-live="polite">
+              <span className="status-dot" aria-hidden="true" />
+              {focusStatus === "focused" && "Focused"}
+              {focusStatus === "attention-reduced" && "Attention Reduced"}
+              {focusStatus === "paused" && "Monitoring Paused"}
+            </div>
+            <p className="status-note-message">{focusMessage}</p>
+          </div>
+
           {isCameraActive ? (
             <button className="camera-button stop-button" type="button" onClick={stopCamera}>
               Stop Camera
@@ -654,8 +769,8 @@ function CameraMonitor() {
           <div className="camera-privacy-note">
             <span className="privacy-shield" aria-hidden="true">&#9674;</span>
             <p>
-              Camera frames and eye measurements stay 100% in this browser. No video is
-              ever stored or sent to any server.
+              Camera frames, eye measurements, and focus evaluations stay 100% in this browser.
+              No video or telemetry is ever stored or transmitted.
             </p>
           </div>
         </aside>

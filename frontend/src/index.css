@@ -433,7 +433,8 @@ h1 {
 
 .face-status,
 .eye-status,
-.drowsiness-status {
+.drowsiness-status,
+.focus-status {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -445,7 +446,8 @@ h1 {
 
 .face-status .status-dot,
 .eye-status .status-dot,
-.drowsiness-status .status-dot {
+.drowsiness-status .status-dot,
+.focus-status .status-dot {
   background: #8c96aa;
 }
 
@@ -475,6 +477,14 @@ h1 {
 .drowsiness-status.drowsiness-suspected .status-dot { background: #dd6472; }
 .drowsiness-status.paused { color: #6d788e; }
 .drowsiness-status.paused .status-dot { background: #8c96aa; }
+
+/* Focus Status classes (Milestone 5) */
+.focus-status.focused { color: #21865f; }
+.focus-status.focused .status-dot { background: #32bb88; }
+.focus-status.attention-reduced { color: #9b741d; }
+.focus-status.attention-reduced .status-dot { background: #dfac34; }
+.focus-status.paused { color: #6d788e; }
+.focus-status.paused .status-dot { background: #8c96aa; }
 
 .status-note-message,
 .face-status-message {

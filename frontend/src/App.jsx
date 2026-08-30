@@ -58,7 +58,7 @@ function App() {
           </div>
           <div className="hero-badge" aria-label="Current project status">
             <span className="status-dot" />
-            Milestone 4: Eye & Drowsiness Monitoring
+            Milestone 5: Smart Study Focus Monitoring
           </div>
         </section>
 
@@ -92,14 +92,14 @@ function App() {
           <div>
             <h2>Privacy-first by design</h2>
             <p>
-              Eye and focus monitoring features run 100% locally in your browser, keeping
+              Focus and eye monitoring features run 100% locally in your browser, keeping
               all camera data private and under your control.
             </p>
           </div>
         </section>
       </main>
 
-      <footer>StudyGuard AI · Milestone 4 Eye & Drowsiness Monitoring</footer>
+      <footer>StudyGuard AI · Milestone 5 Smart Study Focus Monitoring</footer>
     </div>
   );
 }
