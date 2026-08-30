@@ -8,6 +8,7 @@ import {
   startAlertSound,
   stopAlertSound,
   testAlertSound,
+  unlockAudio,
 } from "./utils/audioAlert";
 
 const dashboardCards = [
@@ -211,13 +212,37 @@ function App() {
       if (!next) {
         stopAlertSound();
         isAlarmPlayingRef.current = false;
-      } else if (currentActiveConditionRef.current) {
+      } else if (currentActiveConditionRef.current && alertsEnabled) {
         isAlarmPlayingRef.current = true;
         void startAlertSound({ volume, isMuted: false, loop: true });
       }
       return next;
     });
-  }, [volume]);
+  }, [alertsEnabled, volume]);
+
+  const handleSoundEnabledChange = useCallback(
+    (enabled) => {
+      setSoundEnabled(enabled);
+      if (!enabled) {
+        stopAlertSound();
+        isAlarmPlayingRef.current = false;
+      } else if (currentActiveConditionRef.current && alertsEnabled) {
+        isAlarmPlayingRef.current = true;
+        void startAlertSound({ volume, isMuted: false, loop: true });
+      }
+    },
+    [alertsEnabled, volume],
+  );
+
+  const handleAlertsEnabledChange = useCallback((enabled) => {
+    setAlertsEnabled(enabled);
+    if (!enabled) {
+      stopAlertSound();
+      isAlarmPlayingRef.current = false;
+      currentActiveConditionRef.current = null;
+      setActiveAlert(null);
+    }
+  }, []);
 
   const handleVolumeChange = useCallback((newVolume) => {
     setVolume(newVolume);
@@ -235,8 +260,21 @@ function App() {
     void testAlertSound(volume, !soundEnabled);
     setTimeout(() => {
       setIsTestingSound(false);
-    }, 2500);
+    }, 2800);
   }, [isTestingSound, soundEnabled, volume]);
+
+  // Global one-time interaction listener to prime audio on any user gesture
+  useEffect(() => {
+    const handleGesture = () => {
+      unlockAudio();
+    };
+    window.addEventListener("pointerdown", handleGesture, { once: true });
+    window.addEventListener("keydown", handleGesture, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", handleGesture);
+      window.removeEventListener("keydown", handleGesture);
+    };
+  }, []);
 
   // Clean up audio on component unmount
   useEffect(() => {
@@ -270,9 +308,10 @@ function App() {
 
         <nav className="navigation" aria-label="Main Navigation">
           <a className="nav-link active" href="#dashboard">Dashboard</a>
+          <a className="nav-link" href="#camera">Camera & Vision</a>
           <a className="nav-link" href="#session">Session</a>
-          <a className="nav-link" href="#camera">Camera</a>
           <a className="nav-link" href="#alert-settings">Alerts</a>
+          <a className="nav-link" href="#capabilities">Capabilities</a>
           <a className="nav-link" href="#privacy">Privacy</a>
         </nav>
 
@@ -283,7 +322,7 @@ function App() {
       </header>
 
       <main id="top" className="main-content">
-        {/* HERO SECTION */}
+        {/* 1. HERO SECTION */}
         <section className="hero-section" id="dashboard" aria-labelledby="hero-title">
           <div className="hero-content">
             <div className="hero-badge">
@@ -291,18 +330,19 @@ function App() {
               <span>Intelligent Study & Focus Platform</span>
             </div>
             <h1 id="hero-title" className="hero-title">
-              Focus deeper.<br />Study smarter.
+              StudyGuard <span className="title-accent">AI</span>
             </h1>
+            <p className="hero-subtitle">Focus deeper. Study smarter.</p>
             <p className="hero-description">
-              Real-time on-device study attention monitoring, mobile phone detection, looking-away tracking, and live condition-tied sound alerts — designed for private, distraction-free productivity.
+              Real-time on-device study attention monitoring, mobile phone detection, looking-away tracking, and live condition-tied sound alerts — engineered for private, distraction-free productivity.
             </p>
 
             <div className="hero-quick-actions">
-              <a href="#session" className="btn btn-primary">
-                <span aria-hidden="true">⏱</span> Start Study Session
-              </a>
-              <a href="#camera" className="btn btn-secondary">
+              <a href="#camera" className="btn btn-primary">
                 <span aria-hidden="true">📹</span> Open Camera Monitor
+              </a>
+              <a href="#session" className="btn btn-secondary">
+                <span aria-hidden="true">⏱</span> Start Study Session
               </a>
               <a href="#alert-settings" className="btn btn-secondary">
                 <span aria-hidden="true">🔔</span> Alert Preferences
@@ -314,8 +354,8 @@ function App() {
             <div className="metric-row">
               <div className="metric-badge-icon" aria-hidden="true">🔒</div>
               <div>
-                <strong>100% Private</strong>
-                <p>Zero cloud video processing</p>
+                <strong>100% Private & Local</strong>
+                <p>Zero cloud video transmission</p>
               </div>
             </div>
             <div className="metric-row">
@@ -328,19 +368,45 @@ function App() {
             <div className="metric-row">
               <div className="metric-badge-icon" aria-hidden="true">🔔</div>
               <div>
-                <strong>Active Warning Lifecycle</strong>
-                <p>Alarms tied directly to condition duration</p>
+                <strong>Smart Alarm Lifecycle</strong>
+                <p>Alarms tied directly to active condition</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* OVERVIEW DASHBOARD CARDS */}
-        <section className="dashboard-section" aria-labelledby="overview-title">
+        {/* 2. PRIMARY LIVE MONITORING & VISION TELEMETRY SECTION */}
+        <CameraMonitor onStatusUpdate={handleStatusUpdate} />
+
+        {/* 3. STUDY SESSION TRACKER COMPONENT */}
+        <StudySessionTimer />
+
+        {/* 4. SMART ALERT SETTINGS COMPONENT */}
+        <AlertSettings
+          alertsEnabled={alertsEnabled}
+          setAlertsEnabled={handleAlertsEnabledChange}
+          soundEnabled={soundEnabled}
+          setSoundEnabled={handleSoundEnabledChange}
+          volume={volume}
+          setVolume={handleVolumeChange}
+          drowsinessEnabled={drowsinessEnabled}
+          setDrowsinessEnabled={setDrowsinessEnabled}
+          mobileEnabled={mobileEnabled}
+          setMobileEnabled={setMobileEnabled}
+          lookingAwayEnabled={lookingAwayEnabled}
+          setLookingAwayEnabled={setLookingAwayEnabled}
+          attentionEnabled={attentionEnabled}
+          setAttentionEnabled={setAttentionEnabled}
+          onTestSound={handleTestSound}
+          isTestingSound={isTestingSound}
+        />
+
+        {/* 5. CORE CAPABILITIES (SECONDARY INFORMATIONAL SUITE) */}
+        <section className="dashboard-section" id="capabilities" aria-labelledby="capabilities-title">
           <div className="section-header">
             <div>
               <span className="section-tag">CORE CAPABILITIES</span>
-              <h2 id="overview-title" className="section-title">Study Intelligence Suite</h2>
+              <h2 id="capabilities-title" className="section-title">Study Intelligence Suite</h2>
             </div>
             <p className="section-desc">Unified focus monitoring built for distraction-free learning.</p>
           </div>
@@ -361,33 +427,7 @@ function App() {
           </div>
         </section>
 
-        {/* STUDY SESSION TIMER COMPONENT */}
-        <StudySessionTimer />
-
-        {/* LIVE CAMERA & ATTENTION MONITOR COMPONENT */}
-        <CameraMonitor onStatusUpdate={handleStatusUpdate} />
-
-        {/* SMART ALERT SETTINGS COMPONENT */}
-        <AlertSettings
-          alertsEnabled={alertsEnabled}
-          setAlertsEnabled={setAlertsEnabled}
-          soundEnabled={soundEnabled}
-          setSoundEnabled={setSoundEnabled}
-          volume={volume}
-          setVolume={handleVolumeChange}
-          drowsinessEnabled={drowsinessEnabled}
-          setDrowsinessEnabled={setDrowsinessEnabled}
-          mobileEnabled={mobileEnabled}
-          setMobileEnabled={setMobileEnabled}
-          lookingAwayEnabled={lookingAwayEnabled}
-          setLookingAwayEnabled={setLookingAwayEnabled}
-          attentionEnabled={attentionEnabled}
-          setAttentionEnabled={setAttentionEnabled}
-          onTestSound={handleTestSound}
-          isTestingSound={isTestingSound}
-        />
-
-        {/* PRIVACY FIRST ARCHITECTURE SECTION */}
+        {/* 6. PRIVACY FIRST ARCHITECTURE SECTION */}
         <section className="privacy-section" id="privacy" aria-labelledby="privacy-title">
           <div className="section-header centered">
             <span className="section-tag">PRIVACY ARCHITECTURE</span>
@@ -424,9 +464,10 @@ function App() {
           <p>© {new Date().getFullYear()} StudyGuard AI. Privacy-First Educational Assistant.</p>
           <div className="footer-links">
             <a href="#dashboard">Dashboard</a>
-            <a href="#session">Session</a>
             <a href="#camera">Camera</a>
+            <a href="#session">Session</a>
             <a href="#alert-settings">Alerts</a>
+            <a href="#capabilities">Capabilities</a>
             <a href="#privacy">Privacy Policy</a>
           </div>
         </div>

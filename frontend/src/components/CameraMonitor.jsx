@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { unlockAudio } from "../utils/audioAlert";
 
 const MEDIAPIPE_VISION_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.mjs";
@@ -841,6 +842,7 @@ function CameraMonitor({ onStatusUpdate }) {
   ]);
 
   const enableCamera = async () => {
+    unlockAudio();
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraStatus("error");
       setCameraMessage(

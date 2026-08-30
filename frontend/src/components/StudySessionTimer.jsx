@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { unlockAudio } from "../utils/audioAlert";
 
 /**
  * Formats elapsed seconds into HH:MM:SS format.
@@ -57,6 +58,7 @@ function StudySessionTimer() {
   }, [calculateTotalElapsedSeconds, clearTimerInterval]);
 
   const handleStartSession = useCallback(() => {
+    unlockAudio();
     clearTimerInterval();
     accumulatedMsRef.current = 0;
     startTimeRef.current = Date.now();
@@ -77,6 +79,7 @@ function StudySessionTimer() {
   }, [clearTimerInterval]);
 
   const handleResumeSession = useCallback(() => {
+    unlockAudio();
     clearTimerInterval();
     startTimeRef.current = Date.now();
     setSessionState("running");

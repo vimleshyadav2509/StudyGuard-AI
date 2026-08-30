@@ -1,12 +1,17 @@
 /**
  * StudyGuard AI - Unified Audio Alert Service
- * Supports explicit lifecycle (startAlertSound, stopAlertSound, testAlertSound)
- * using custom MP3 (/sounds/studyguard-alarm.mp3) with Web Audio API synthetic fallback.
+ * Reliable HTML5 Audio playback for custom MP3 (/sounds/studyguard-alarm.mp3)
+ * with user-gesture unlocking, single reusable audio instance, non-restarting loops,
+ * immediate condition clearance, and graceful Web Audio API fallback.
  */
 
-let audioContext = null;
-let currentAudioElement = null;
+const ALARM_SOUND_PATH = "/sounds/studyguard-alarm.mp3";
+
+let alarmAudio = null;
 let isPlaying = false;
+let isTestPlaying = false;
+let testTimeoutId = null;
+let audioContext = null;
 
 // Web Audio Fallback state
 let activeOscillators = [];
@@ -25,6 +30,40 @@ function getAudioContext() {
     audioContext.resume().catch(() => {});
   }
   return audioContext;
+}
+
+/**
+ * Gets or initializes the single reusable HTMLAudioElement.
+ */
+function getAlarmAudio() {
+  if (typeof window === "undefined") return null;
+  if (!alarmAudio) {
+    alarmAudio = new Audio(ALARM_SOUND_PATH);
+    alarmAudio.preload = "auto";
+    alarmAudio.addEventListener("error", (e) => {
+      console.warn("[StudyGuard Audio] Custom MP3 error or not found:", ALARM_SOUND_PATH, e);
+    });
+  }
+  return alarmAudio;
+}
+
+/**
+ * Unlocks the audio subsystem during user interactions
+ * (e.g., Enable Camera, Start Session, Test Alarm, or page click/key press).
+ */
+export function unlockAudio() {
+  try {
+    const audio = getAlarmAudio();
+    if (audio) {
+      audio.load();
+    }
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+  } catch (err) {
+    // Non-fatal unlock error
+  }
 }
 
 /**
@@ -91,7 +130,7 @@ function triggerSingleSyntheticChime(volume = 0.6) {
       activeOscillators = activeOscillators.filter((o) => o !== osc1 && o !== osc2);
     }, 750);
   } catch (err) {
-    console.warn("Synthetic chime error:", err);
+    console.warn("[StudyGuard Audio] Synthetic chime error:", err);
   }
 }
 
@@ -111,79 +150,89 @@ function startSyntheticChime(volume = 0.6, loop = true) {
 
 /**
  * Starts the alarm audio.
- * Uses custom MP3 at /sounds/studyguard-alarm.mp3 if available, or synthetic fallback.
+ * Uses custom MP3 at /sounds/studyguard-alarm.mp3 with seamless looping.
  * If already playing, maintains playback without restarting from time 0.
  */
-export function startAlertSound(options = {}) {
+export async function startAlertSound(options = {}) {
   const {
     volume = 0.6,
     isMuted = false,
-    soundPath = "/sounds/studyguard-alarm.mp3",
+    soundPath = ALARM_SOUND_PATH,
     loop = true,
   } = options;
 
   if (isMuted || volume <= 0) {
     stopAlertSound();
-    return Promise.resolve(false);
+    return false;
   }
 
-  if (isPlaying && currentAudioElement) {
-    // Already playing the custom audio element: update volume and ensure loop flag
-    currentAudioElement.volume = Math.max(0, Math.min(1, volume));
-    currentAudioElement.loop = loop;
-    return Promise.resolve(true);
+  // Clear any active test timeout
+  if (testTimeoutId) {
+    clearTimeout(testTimeoutId);
+    testTimeoutId = null;
+    isTestPlaying = false;
+  }
+
+  const audio = getAlarmAudio();
+  const clampedVolume = Math.max(0, Math.min(1, volume));
+
+  // If already playing alarm audio and not paused, simply update volume and loop setting
+  if (isPlaying && audio && !audio.paused) {
+    audio.volume = clampedVolume;
+    audio.loop = loop;
+    return true;
   }
 
   isPlaying = true;
 
-  return new Promise((resolve) => {
+  if (audio) {
     try {
-      if (!currentAudioElement) {
-        currentAudioElement = new Audio(soundPath);
-      }
-
-      currentAudioElement.volume = Math.max(0, Math.min(1, volume));
-      currentAudioElement.loop = loop;
-      currentAudioElement.currentTime = 0;
-
-      const playPromise = currentAudioElement.play();
+      audio.volume = clampedVolume;
+      audio.loop = loop;
+      audio.currentTime = 0;
+      const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            resolve(true);
-          })
-          .catch(() => {
-            // Audio file not found or browser restricted -> use Web Audio API fallback
-            startSyntheticChime(volume, loop);
-            resolve(true);
-          });
-      } else {
-        startSyntheticChime(volume, loop);
-        resolve(true);
+        await playPromise;
       }
-    } catch {
-      startSyntheticChime(volume, loop);
-      resolve(true);
+      return true;
+    } catch (err) {
+      if (err.name === "NotAllowedError") {
+        console.warn("[StudyGuard Audio] Autoplay blocked by browser policy. Interacting with the page unlocks sound.");
+      } else if (err.name === "AbortError") {
+        // Play was interrupted by an immediate stop/pause (condition cleared quickly)
+        return false;
+      } else {
+        console.warn("[StudyGuard Audio] Audio playback fallback:", err.message);
+        startSyntheticChime(clampedVolume, loop);
+      }
+      return false;
     }
-  });
+  } else {
+    startSyntheticChime(clampedVolume, loop);
+    return true;
+  }
 }
 
 /**
  * IMMEDIATELY stops all alarm audio playback (both custom MP3 and synthetic fallback).
- * Resets playback position to 0 and releases audio resources.
+ * Resets playback position to 0 and releases active audio locks.
  */
 export function stopAlertSound() {
   isPlaying = false;
+  isTestPlaying = false;
 
-  // 1. Immediately pause and reset HTML5 audio element
-  if (currentAudioElement) {
-    try {
-      currentAudioElement.pause();
-      currentAudioElement.currentTime = 0;
-    } catch {}
+  if (testTimeoutId) {
+    clearTimeout(testTimeoutId);
+    testTimeoutId = null;
   }
 
-  // 2. Immediately stop any active synthetic Web Audio chimes/oscillators
+  if (alarmAudio) {
+    try {
+      alarmAudio.pause();
+      alarmAudio.currentTime = 0;
+    } catch (err) {}
+  }
+
   stopSyntheticChime();
 }
 
@@ -192,9 +241,9 @@ export function stopAlertSound() {
  */
 export function setAlertVolume(volume = 0.6) {
   const clamped = Math.max(0, Math.min(1, volume));
-  if (currentAudioElement) {
+  if (alarmAudio) {
     try {
-      currentAudioElement.volume = clamped;
+      alarmAudio.volume = clamped;
     } catch {}
   }
 }
@@ -202,19 +251,51 @@ export function setAlertVolume(volume = 0.6) {
 /**
  * Tests alarm playback explicitly triggered by user interaction.
  */
-export function testAlertSound(volume = 0.6, isMuted = false) {
-  const ctx = getAudioContext();
-  if (ctx && ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
+export async function testAlertSound(volume = 0.6, isMuted = false) {
+  unlockAudio();
+  stopAlertSound();
+
+  if (isMuted || volume <= 0) {
+    return false;
   }
 
-  stopAlertSound();
-  return startAlertSound({ volume, isMuted, loop: false });
+  const audio = getAlarmAudio();
+  const clampedVolume = Math.max(0, Math.min(1, volume));
+
+  if (!audio) {
+    startSyntheticChime(clampedVolume, false);
+    return true;
+  }
+
+  try {
+    audio.volume = clampedVolume;
+    audio.loop = false;
+    audio.currentTime = 0;
+    isTestPlaying = true;
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      await playPromise;
+    }
+
+    testTimeoutId = setTimeout(() => {
+      if (isTestPlaying) {
+        stopAlertSound();
+      }
+    }, 2800);
+
+    return true;
+  } catch (err) {
+    console.warn("[StudyGuard Audio] Test alarm play prevented:", err.message);
+    isTestPlaying = false;
+    startSyntheticChime(clampedVolume, false);
+    return false;
+  }
 }
 
 /**
  * Checks whether an alarm is currently playing.
  */
 export function isAlertSoundPlaying() {
-  return isPlaying;
+  return isPlaying || isTestPlaying;
 }
