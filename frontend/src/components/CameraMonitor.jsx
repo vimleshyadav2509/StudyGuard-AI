@@ -652,128 +652,191 @@ function CameraMonitor() {
 
   return (
     <section className="camera-section" id="camera" aria-labelledby="camera-title">
-      <div className="camera-intro">
+      <div className="section-header">
         <div>
-          <p className="eyebrow">CAMERA MONITORING</p>
-          <h2 id="camera-title">Your private study view</h2>
+          <span className="section-tag">LIVE VISION TELEMETRY</span>
+          <h2 id="camera-title" className="section-title">Camera & Attention Monitor</h2>
         </div>
-        <p>
-          StudyGuard AI uses your camera for real-time focus & eye openness monitoring.
-          Camera access starts only when you choose to enable it.
+        <p className="section-desc">
+          High-frequency on-device neural landmark analysis with temporal debounce stability.
         </p>
       </div>
 
-      <div className="camera-layout">
-        <div className="camera-preview" aria-label="Camera preview area">
-          <video
-            className={`camera-video ${isCameraActive ? "is-visible" : ""}`}
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            aria-label="Live camera preview"
-          />
-          <canvas
-            className={`face-overlay ${isCameraActive ? "is-visible" : ""}`}
-            ref={faceCanvasRef}
-            aria-hidden="true"
-          />
-          {!isCameraActive && (
-            <div className="camera-placeholder">
-              <span className="camera-placeholder-icon" aria-hidden="true" />
-              <strong>Camera preview is off</strong>
-              <p>Your live preview appears here after you allow access.</p>
+      <div className="camera-grid">
+        {/* LEFT COLUMN: Camera Feed & Main Hardware Controls */}
+        <div className="camera-feed-card">
+          <div className="feed-header">
+            <div className="feed-title-wrap">
+              <span className="feed-icon" aria-hidden="true">📹</span>
+              <div>
+                <h3 className="feed-heading">Video Stream</h3>
+                <span className="feed-subheading">Local preview only</span>
+              </div>
             </div>
+            <div className={`camera-chip ${cameraStatus}`} role="status" aria-live="polite">
+              <span className="status-dot" aria-hidden="true" />
+              <span>
+                {cameraStatus === "camera-off" && "Camera Off"}
+                {isCameraStarting && "Connecting..."}
+                {isCameraActive && "Live Stream Active"}
+                {cameraStatus === "denied" && "Permission Denied"}
+                {cameraStatus === "error" && "Hardware Error"}
+              </span>
+            </div>
+          </div>
+
+          <div className="camera-preview-box" aria-label="Camera preview area">
+            <video
+              className={`camera-video ${isCameraActive ? "is-visible" : ""}`}
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              aria-label="Live camera video stream"
+            />
+            <canvas
+              className={`face-overlay ${isCameraActive ? "is-visible" : ""}`}
+              ref={faceCanvasRef}
+              aria-hidden="true"
+            />
+            {!isCameraActive && (
+              <div className="camera-placeholder">
+                <div className="placeholder-icon-wrap" aria-hidden="true">
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                    <circle cx="12" cy="13" r="3"/>
+                  </svg>
+                </div>
+                <strong>Camera is currently inactive</strong>
+                <p>Activate your webcam to initiate private on-device focus tracking.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="camera-controls-bar">
+            {isCameraActive ? (
+              <button
+                className="btn btn-danger btn-block"
+                type="button"
+                onClick={stopCamera}
+                id="stop-camera-btn"
+              >
+                <span aria-hidden="true">⏹</span> Stop Camera Stream
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary btn-block"
+                type="button"
+                onClick={enableCamera}
+                disabled={isCameraStarting}
+                id="enable-camera-btn"
+              >
+                <span aria-hidden="true">▶</span> {isCameraStarting ? "Requesting Camera Access..." : "Enable Camera Stream"}
+              </button>
+            )}
+          </div>
+
+          {cameraMessage && (
+            <p className="feed-footer-msg" role="status">
+              <span className="info-icon" aria-hidden="true">ⓘ</span>
+              <span>{cameraMessage}</span>
+            </p>
           )}
         </div>
 
-        <aside className="camera-panel">
-          {/* CAMERA STATUS */}
-          <div className="status-label">CAMERA STATUS</div>
-          <div className={`camera-status ${cameraStatus}`} role="status" aria-live="polite">
-            <span className="status-dot" aria-hidden="true" />
-            {cameraStatus === "camera-off" && "Camera Off"}
-            {isCameraStarting && "Camera Starting"}
-            {isCameraActive && "Camera Active"}
-            {cameraStatus === "denied" && "Permission Denied"}
-            {cameraStatus === "error" && "Camera Error"}
+        {/* RIGHT COLUMN: Real-Time Telemetry & Status Cards */}
+        <div className="telemetry-panel">
+          <div className="telemetry-header">
+            <h3 className="telemetry-title">Live Vision Indicators</h3>
+            <span className="telemetry-badge">Private Inference</span>
           </div>
-          <p className="camera-status-message">{cameraMessage}</p>
 
-          {/* FACE STATUS */}
-          <div className="status-sub-section">
-            <div className="status-label">FACE STATUS</div>
-            <div className={`face-status ${faceStatus}`} role="status" aria-live="polite">
-              <span className="status-dot" aria-hidden="true" />
-              {faceStatus === "off" && "Face Monitoring Off"}
-              {faceStatus === "initializing" && "Initializing Landmarker"}
-              {faceStatus === "detected" && "Face Detected"}
-              {faceStatus === "not-detected" && "Face Not Detected"}
-              {faceStatus === "error" && "Detection Error"}
+          <div className="telemetry-cards-list">
+            {/* 1. STUDY FOCUS CARD (PRIMARY) */}
+            <div className={`status-card highlight-card focus-${focusStatus}`}>
+              <div className="status-card-top">
+                <div className="status-card-label">
+                  <span className="status-icon-indicator" aria-hidden="true">🎯</span>
+                  <span>STUDY FOCUS</span>
+                </div>
+                <div className={`status-pill ${focusStatus}`} role="status" aria-live="polite">
+                  <span className="status-dot" aria-hidden="true" />
+                  <span>
+                    {focusStatus === "focused" && "Focused"}
+                    {focusStatus === "attention-reduced" && "Attention Reduced"}
+                    {focusStatus === "paused" && "Monitoring Paused"}
+                  </span>
+                </div>
+              </div>
+              <p className="status-card-desc">{focusMessage}</p>
             </div>
-            <p className="status-note-message">{faceMessage}</p>
-          </div>
 
-          {/* EYE STATUS */}
-          <div className="status-sub-section">
-            <div className="status-label">EYE STATUS</div>
-            <div className={`eye-status ${eyeStatus}`} role="status" aria-live="polite">
-              <span className="status-dot" aria-hidden="true" />
-              {eyeStatus === "eyes-open" && "Eyes Open"}
-              {eyeStatus === "eyes-closed" && "Eyes Closed"}
-              {eyeStatus === "eyes-unknown" && "Eyes Unknown"}
+            {/* 2. FACE DETECTION CARD */}
+            <div className={`status-card face-${faceStatus}`}>
+              <div className="status-card-top">
+                <div className="status-card-label">
+                  <span className="status-icon-indicator" aria-hidden="true">👤</span>
+                  <span>FACE PRESENCE</span>
+                </div>
+                <div className={`status-pill ${faceStatus}`} role="status" aria-live="polite">
+                  <span className="status-dot" aria-hidden="true" />
+                  <span>
+                    {faceStatus === "off" && "Monitoring Off"}
+                    {faceStatus === "initializing" && "Initializing Mesh"}
+                    {faceStatus === "detected" && "Face Detected"}
+                    {faceStatus === "not-detected" && "Not Detected"}
+                    {faceStatus === "error" && "Error"}
+                  </span>
+                </div>
+              </div>
+              <p className="status-card-desc">{faceMessage}</p>
             </div>
-            <p className="status-note-message">{eyeMessage}</p>
-          </div>
 
-          {/* DROWSINESS STATUS */}
-          <div className="status-sub-section">
-            <div className="status-label">DROWSINESS STATUS</div>
-            <div className={`drowsiness-status ${drowsinessStatus}`} role="status" aria-live="polite">
-              <span className="status-dot" aria-hidden="true" />
-              {drowsinessStatus === "alert" && "Alert"}
-              {drowsinessStatus === "eyes-closed" && "Eyes Closed"}
-              {drowsinessStatus === "drowsiness-suspected" && "Drowsiness Suspected"}
-              {drowsinessStatus === "paused" && "Monitoring Paused"}
+            {/* 3. EYE TRACKING CARD */}
+            <div className={`status-card eye-${eyeStatus}`}>
+              <div className="status-card-top">
+                <div className="status-card-label">
+                  <span className="status-icon-indicator" aria-hidden="true">👁</span>
+                  <span>EYE APERTURE</span>
+                </div>
+                <div className={`status-pill ${eyeStatus}`} role="status" aria-live="polite">
+                  <span className="status-dot" aria-hidden="true" />
+                  <span>
+                    {eyeStatus === "eyes-open" && "Eyes Open"}
+                    {eyeStatus === "eyes-closed" && "Eyes Closed"}
+                    {eyeStatus === "eyes-unknown" && "Eyes Unknown"}
+                  </span>
+                </div>
+              </div>
+              <p className="status-card-desc">{eyeMessage}</p>
             </div>
-            <p className="status-note-message">{drowsinessMessage}</p>
-          </div>
 
-          {/* STUDY FOCUS (MILESTONE 5) */}
-          <div className="status-sub-section focus-section">
-            <div className="status-label">STUDY FOCUS</div>
-            <div className={`focus-status ${focusStatus}`} role="status" aria-live="polite">
-              <span className="status-dot" aria-hidden="true" />
-              {focusStatus === "focused" && "Focused"}
-              {focusStatus === "attention-reduced" && "Attention Reduced"}
-              {focusStatus === "paused" && "Monitoring Paused"}
+            {/* 4. DROWSINESS MONITOR CARD */}
+            <div className={`status-card drowsiness-${drowsinessStatus}`}>
+              <div className="status-card-top">
+                <div className="status-card-label">
+                  <span className="status-icon-indicator" aria-hidden="true">⚡</span>
+                  <span>DROWSINESS STATE</span>
+                </div>
+                <div className={`status-pill ${drowsinessStatus}`} role="status" aria-live="polite">
+                  <span className="status-dot" aria-hidden="true" />
+                  <span>
+                    {drowsinessStatus === "alert" && "Alert"}
+                    {drowsinessStatus === "eyes-closed" && "Eyes Closed"}
+                    {drowsinessStatus === "drowsiness-suspected" && "Drowsiness Suspected"}
+                    {drowsinessStatus === "paused" && "Monitoring Paused"}
+                  </span>
+                </div>
+              </div>
+              <p className="status-card-desc">{drowsinessMessage}</p>
             </div>
-            <p className="status-note-message">{focusMessage}</p>
           </div>
 
-          {isCameraActive ? (
-            <button className="camera-button stop-button" type="button" onClick={stopCamera}>
-              Stop Camera
-            </button>
-          ) : (
-            <button
-              className="camera-button"
-              type="button"
-              onClick={enableCamera}
-              disabled={isCameraStarting}
-            >
-              {isCameraStarting ? "Starting camera..." : "Enable Camera"}
-            </button>
-          )}
-
-          <div className="camera-privacy-note">
-            <span className="privacy-shield" aria-hidden="true">&#9674;</span>
-            <p>
-              Camera frames, eye measurements, and focus evaluations stay 100% in this browser.
-              No video or telemetry is ever stored or transmitted.
-            </p>
+          <div className="telemetry-privacy-footnote">
+            <span className="shield-icon" aria-hidden="true">🛡</span>
+            <span>Zero video frames or facial biometrics ever leave your local browser sandbox.</span>
           </div>
-        </aside>
+        </div>
       </div>
     </section>
   );

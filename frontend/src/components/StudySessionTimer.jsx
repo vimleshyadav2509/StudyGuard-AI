@@ -114,13 +114,13 @@ function StudySessionTimer() {
 
   return (
     <section className="session-section" id="session" aria-labelledby="session-title">
-      <div className="session-intro">
+      <div className="section-header">
         <div>
-          <p className="eyebrow">STUDY SESSION</p>
-          <h2 id="session-title">Focused study timer</h2>
+          <span className="section-tag">SESSION MANAGEMENT</span>
+          <h2 id="session-title" className="section-title">Study Session Tracker</h2>
         </div>
-        <p>
-          Track dedicated study intervals at your own pace. Works independently alongside camera monitoring.
+        <p className="section-desc">
+          High-precision study intervals with independent lifecycle control.
         </p>
       </div>
 
@@ -128,48 +128,56 @@ function StudySessionTimer() {
         <div className="session-header-row">
           <div className="session-status-container">
             <span className="status-label">SESSION STATUS</span>
-            <div className={`session-status ${sessionState}`} role="status" aria-live="polite">
+            <div className={`session-status-pill ${sessionState}`} role="status" aria-live="polite">
               <span className="status-dot" aria-hidden="true" />
-              {sessionState === "idle" && "Ready"}
-              {sessionState === "running" && "Running"}
-              {sessionState === "paused" && "Paused"}
-              {sessionState === "ended" && "Ended"}
+              <span>
+                {sessionState === "idle" && "Ready to Study"}
+                {sessionState === "running" && "Active Session"}
+                {sessionState === "paused" && "Session Paused"}
+                {sessionState === "ended" && "Session Concluded"}
+              </span>
             </div>
           </div>
           <p className="session-status-message">{sessionMessages[sessionState]}</p>
         </div>
 
-        <div className="session-timer-display" aria-label="Session elapsed time">
-          <span className="timer-icon" aria-hidden="true">⏱</span>
-          <span className="timer-digits">{formatTime(elapsedSeconds)}</span>
+        <div className="session-timer-display" aria-label={`Elapsed session time: ${formatTime(elapsedSeconds)}`}>
+          <div className="timer-badge" aria-hidden="true">
+            <span className="timer-icon">⏱</span>
+            <span className="timer-mode-label">ELAPSED TIME</span>
+          </div>
+          <span className="timer-digits" id="timer-display-digits">{formatTime(elapsedSeconds)}</span>
         </div>
 
         <div className="session-controls">
           {sessionState === "idle" && (
             <button
-              className="session-button start-button"
+              className="btn btn-primary btn-lg"
               type="button"
               onClick={handleStartSession}
+              id="start-session-btn"
             >
-              ▶ Start Session
+              <span aria-hidden="true">▶</span> Start Study Session
             </button>
           )}
 
           {sessionState === "running" && (
             <div className="button-group">
               <button
-                className="session-button pause-button"
+                className="btn btn-warning btn-lg"
                 type="button"
                 onClick={handlePauseSession}
+                id="pause-session-btn"
               >
-                ⏸ Pause Session
+                <span aria-hidden="true">⏸</span> Pause Session
               </button>
               <button
-                className="session-button end-button"
+                className="btn btn-danger btn-lg"
                 type="button"
                 onClick={handleEndSession}
+                id="end-session-btn"
               >
-                ⏹ End Session
+                <span aria-hidden="true">⏹</span> End Session
               </button>
             </div>
           )}
@@ -177,18 +185,20 @@ function StudySessionTimer() {
           {sessionState === "paused" && (
             <div className="button-group">
               <button
-                className="session-button resume-button"
+                className="btn btn-primary btn-lg"
                 type="button"
                 onClick={handleResumeSession}
+                id="resume-session-btn"
               >
-                ▶ Resume Session
+                <span aria-hidden="true">▶</span> Resume Session
               </button>
               <button
-                className="session-button end-button"
+                className="btn btn-danger btn-lg"
                 type="button"
                 onClick={handleEndSession}
+                id="end-session-btn"
               >
-                ⏹ End Session
+                <span aria-hidden="true">⏹</span> End Session
               </button>
             </div>
           )}
@@ -196,18 +206,20 @@ function StudySessionTimer() {
           {sessionState === "ended" && (
             <div className="button-group">
               <button
-                className="session-button start-button"
+                className="btn btn-primary btn-lg"
                 type="button"
                 onClick={handleStartSession}
+                id="start-new-session-btn"
               >
-                ▶ Start New Session
+                <span aria-hidden="true">▶</span> Start New Session
               </button>
               <button
-                className="session-button secondary-button"
+                className="btn btn-secondary btn-lg"
                 type="button"
                 onClick={handleResetSession}
+                id="reset-session-btn"
               >
-                ↺ Reset Timer
+                <span aria-hidden="true">↺</span> Reset Timer
               </button>
             </div>
           )}
