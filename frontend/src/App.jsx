@@ -1,4 +1,5 @@
 import CameraMonitor from "./components/CameraMonitor";
+import StudySessionTimer from "./components/StudySessionTimer";
 
 const dashboardCards = [
   {
@@ -11,8 +12,8 @@ const dashboardCards = [
   {
     icon: "◷",
     title: "Study Timer",
-    description: "Set up focused study sessions and Pomodoro cycles later.",
-    status: "Ready to set up",
+    description: "Set up focused study sessions and track dedicated study intervals.",
+    status: "Timer controls below",
     accent: "blue",
   },
   {
@@ -41,6 +42,7 @@ function App() {
         </a>
         <nav className="navigation" aria-label="Main navigation">
           <a className="active" href="#dashboard">Dashboard</a>
+          <a href="#session">Session</a>
           <a href="#camera">Camera</a>
           <a href="#how-it-works">How it works</a>
         </nav>
@@ -58,7 +60,7 @@ function App() {
           </div>
           <div className="hero-badge" aria-label="Current project status">
             <span className="status-dot" />
-            Milestone 5: Smart Study Focus Monitoring
+            Milestone 6: Study Session Timer & Controls
           </div>
         </section>
 
@@ -85,6 +87,8 @@ function App() {
           </div>
         </section>
 
+        <StudySessionTimer />
+
         <CameraMonitor />
 
         <section className="privacy-note" id="how-it-works">
@@ -92,14 +96,14 @@ function App() {
           <div>
             <h2>Privacy-first by design</h2>
             <p>
-              Focus and eye monitoring features run 100% locally in your browser, keeping
-              all camera data private and under your control.
+              Focus, timer, and eye monitoring features run 100% locally in your browser, keeping
+              all session data private and under your control.
             </p>
           </div>
         </section>
       </main>
 
-      <footer>StudyGuard AI · Milestone 5 Smart Study Focus Monitoring</footer>
+      <footer>StudyGuard AI · Milestone 6 Study Session Timer</footer>
     </div>
   );
 }
