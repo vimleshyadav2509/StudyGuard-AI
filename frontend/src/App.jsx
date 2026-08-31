@@ -342,50 +342,66 @@ function App() {
         onToggleMute={handleToggleMute}
       />
 
-      {/* Tailwind verification helper element */}
-      <div className="hidden" aria-hidden="true" />
-
-      {/* PROFESSIONAL APPLICATION HEADER */}
+      {/* TOP NAVIGATION — GLASSMORPHISM & NEON ACCENTS */}
       <header className="site-header">
         <div className="brand-group">
           <a className="brand" href="#top" aria-label="StudyGuard AI Home">
-            <span className="brand-mark" aria-hidden="true">S</span>
+            <span className="brand-mark" aria-hidden="true">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <circle cx="12" cy="11" r="3" />
+              </svg>
+            </span>
             <div className="brand-text">
-              <span className="brand-name">StudyGuard <strong>AI</strong></span>
-              <span className="brand-tagline">Smart AI-Powered Study Monitoring</span>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="brand-name font-black tracking-tight">
+                  StudyGuard <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500 bg-clip-text text-transparent font-black">AI</span>
+                </span>
+                <span className="brand-privacy-badge" aria-label="Privacy status: 100% Private and Local">
+                  <span className="brand-privacy-dot" />
+                  100% Private &amp; Local
+                </span>
+              </div>
+              <span className="brand-tagline">Smart Autonomous On-Device Vision</span>
             </div>
           </a>
         </div>
 
         <nav className="navigation" aria-label="Main Navigation">
           <a className="nav-link active" href="#dashboard">Dashboard</a>
-          <a className="nav-link" href="#camera">Camera & Vision</a>
+          <a className="nav-link" href="#camera">Camera &amp; Vision</a>
           <a className="nav-link" href="#session">Session</a>
           <a className="nav-link" href="#alert-settings">Alerts</a>
-          <a className="nav-link" href="#capabilities">Capabilities</a>
           <a className="nav-link" href="#privacy">Privacy</a>
         </nav>
 
         <div className="header-status-pill" aria-label="System status: On-Device & Private">
           <span className="status-dot online" aria-hidden="true" />
-          <span>Private & On-Device</span>
+          <span>Private &amp; On-Device</span>
         </div>
       </header>
 
       <main id="top" className="main-content">
-        {/* 1. HERO SECTION */}
+        {/* 1. HERO SECTION — FUTURISTIC AI STARTUP HERO */}
         <section className="hero-section" id="dashboard" aria-labelledby="hero-title">
+          {/* Subtle Ambient Glow Shapes */}
+          <div className="hero-glow-bg" aria-hidden="true" />
+
           <div className="hero-content">
             <div className="hero-badge">
               <span className="sparkle-icon" aria-hidden="true">✨</span>
-              <span>Intelligent Study & Focus Platform</span>
+              <span>Autonomous On-Device Study Intelligence</span>
             </div>
+
             <h1 id="hero-title" className="hero-title">
-              StudyGuard <span className="title-accent">AI</span>
+              Focus deeper.<br />
+              <span className="title-accent">Study smarter.</span>
             </h1>
-            <p className="hero-subtitle">Focus deeper. Study smarter.</p>
+
+            <p className="hero-subtitle">Private On-Device Computer Vision Study Assistant</p>
+
             <p className="hero-description">
-              Real-time on-device study attention monitoring, electronic device detection, looking-away tracking, and live condition-tied sound alerts — engineered for private, distraction-free productivity.
+              StudyGuard AI helps students stay focused using private on-device computer vision. Real-time visual attention evaluation, distraction &amp; electronic device detection, looking-away tracking, and condition-tied smart alerts — 100% in your browser.
             </p>
 
             <div className="hero-quick-actions">
@@ -405,22 +421,22 @@ function App() {
             <div className="metric-row">
               <div className="metric-badge-icon" aria-hidden="true">🔒</div>
               <div>
-                <strong>100% Private & Local</strong>
-                <p>Zero cloud video transmission</p>
+                <strong>100% On-Device AI</strong>
+                <p>Zero cloud latency &amp; zero video uploads</p>
               </div>
             </div>
             <div className="metric-row">
-              <div className="metric-badge-icon" aria-hidden="true">📱</div>
+              <div className="metric-badge-icon" aria-hidden="true">⚡</div>
               <div>
-                <strong>Electronic Device & Gaze AI</strong>
-                <p>Real-time neural distraction detection</p>
+                <strong>Real-Time Vision</strong>
+                <p>468-pt facial mesh &amp; neural device tracking</p>
               </div>
             </div>
             <div className="metric-row">
-              <div className="metric-badge-icon" aria-hidden="true">🔔</div>
+              <div className="metric-badge-icon" aria-hidden="true">🛡</div>
               <div>
-                <strong>Smart Alarm Lifecycle</strong>
-                <p>Alarms tied directly to active condition</p>
+                <strong>Privacy First</strong>
+                <p>Pure client-side WebAssembly inference</p>
               </div>
             </div>
           </div>

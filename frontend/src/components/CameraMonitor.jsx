@@ -964,14 +964,14 @@ function CameraMonitor({ onStatusUpdate }) {
   const isCameraStarting = cameraStatus === "starting";
 
   return (
-    <section className="camera-section" id="camera" aria-labelledby="camera-title">
+    <section className={`camera-section ${isCameraActive ? "is-active" : ""}`} id="camera" aria-labelledby="camera-title">
       <div className="section-header">
         <div>
-          <span className="section-tag">LIVE VISION TELEMETRY</span>
-          <h2 id="camera-title" className="section-title">Camera & Attention Monitor</h2>
+          <span className="section-tag">✨ REAL-TIME ON-DEVICE NEURAL VISION</span>
+          <h2 id="camera-title" className="section-title">Camera &amp; Vision Workspace</h2>
         </div>
         <p className="section-desc">
-          High-frequency on-device neural landmark, eye openness, gaze, and mobile detection running in a single video stream.
+          Autonomous browser-based computer vision evaluating study focus, posture, eye aperture, and distraction objects in real-time.
         </p>
       </div>
 
@@ -980,16 +980,18 @@ function CameraMonitor({ onStatusUpdate }) {
         <div className="camera-feed-card">
           <div className="feed-header">
             <div className="feed-title-wrap">
-              <span className="feed-icon" aria-hidden="true">📹</span>
+              <div className="feed-icon-box" aria-hidden="true">
+                📹
+              </div>
               <div>
-                <h3 className="feed-heading">Video Stream</h3>
-                <span className="feed-subheading">Local preview only</span>
+                <h3 className="feed-heading">Neural Camera Stream</h3>
+                <span className="feed-subheading">Local WebAssembly Sandbox</span>
               </div>
             </div>
             <div className={`camera-chip ${cameraStatus}`} role="status" aria-live="polite">
               <span className="status-dot" aria-hidden="true" />
               <span>
-                {cameraStatus === "camera-off" && "Camera Off"}
+                {cameraStatus === "camera-off" && "Camera Standby"}
                 {isCameraStarting && "Connecting..."}
                 {isCameraActive && "Live Stream Active"}
                 {cameraStatus === "denied" && "Permission Denied"}
@@ -999,6 +1001,25 @@ function CameraMonitor({ onStatusUpdate }) {
           </div>
 
           <div className="camera-preview-box" aria-label="Camera preview area">
+            {/* Futuristic HUD Corner Reticles */}
+            <div className="camera-hud-corners" aria-hidden="true">
+              <span className="hud-corner top-left" />
+              <span className="hud-corner top-right" />
+              <span className="hud-corner bottom-left" />
+              <span className="hud-corner bottom-right" />
+            </div>
+
+            {/* Top HUD Bar */}
+            <div className="camera-hud-top" aria-hidden="true">
+              <div className="hud-tag">
+                <span className="hud-status-dot" />
+                <span>{isCameraActive ? "AI VISION ONLINE" : "STANDBY"}</span>
+              </div>
+              <div className="hud-tag hud-right">
+                <span>ON-DEVICE WASM • 100% PRIVATE</span>
+              </div>
+            </div>
+
             <video
               className={`camera-video ${isCameraActive ? "is-visible" : ""}`}
               ref={videoRef}
@@ -1012,16 +1033,29 @@ function CameraMonitor({ onStatusUpdate }) {
               ref={faceCanvasRef}
               aria-hidden="true"
             />
+
+            {/* Bottom HUD Bar */}
+            {isCameraActive && (
+              <div className="camera-hud-bottom" aria-hidden="true">
+                <span className="hud-micro-badge">
+                  {faceStatus === "detected" ? "👤 FACE LOCKED" : "👤 SEARCHING FACE"}
+                </span>
+                <span className="hud-micro-badge">
+                  {deviceStatus === "device-detected" ? "⚠️ DEVICE IN FIELD" : "✨ FIELD CLEAR"}
+                </span>
+              </div>
+            )}
+
             {!isCameraActive && (
               <div className="camera-placeholder">
                 <div className="placeholder-icon-wrap" aria-hidden="true">
-                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
                     <circle cx="12" cy="13" r="3"/>
                   </svg>
                 </div>
-                <strong>Camera is currently inactive</strong>
-                <p>Activate your webcam to initiate private on-device focus and alert tracking.</p>
+                <strong>Webcam Standby Mode</strong>
+                <p>Activate your camera to initiate private on-device focus tracking, eye monitoring, and distraction detection.</p>
               </div>
             )}
           </div>
@@ -1029,7 +1063,7 @@ function CameraMonitor({ onStatusUpdate }) {
           <div className="camera-controls-bar">
             {isCameraActive ? (
               <button
-                className="btn btn-danger btn-block"
+                className="btn btn-danger btn-block btn-lg"
                 type="button"
                 onClick={stopCamera}
                 id="stop-camera-btn"
@@ -1038,7 +1072,7 @@ function CameraMonitor({ onStatusUpdate }) {
               </button>
             ) : (
               <button
-                className="btn btn-primary btn-block"
+                className="btn btn-primary btn-block btn-lg"
                 type="button"
                 onClick={enableCamera}
                 disabled={isCameraStarting}
@@ -1060,8 +1094,8 @@ function CameraMonitor({ onStatusUpdate }) {
         {/* RIGHT COLUMN: Real-Time Telemetry & Status Cards */}
         <div className="telemetry-panel">
           <div className="telemetry-header">
-            <h3 className="telemetry-title">Live Vision Indicators</h3>
-            <span className="telemetry-badge">Private Inference</span>
+            <h3 className="telemetry-title">Neural Telemetry</h3>
+            <span className="telemetry-badge">● Live Local Inference</span>
           </div>
 
           <div className="telemetry-cards-list">
@@ -1198,7 +1232,7 @@ function CameraMonitor({ onStatusUpdate }) {
 
           <div className="telemetry-privacy-footnote">
             <span className="shield-icon" aria-hidden="true">🛡</span>
-            <span>Zero video frames or facial biometrics ever leave your local browser sandbox.</span>
+            <span>100% On-Device Neural Processing — Zero video frames or facial biometrics ever leave your local browser sandbox.</span>
           </div>
         </div>
       </div>
