@@ -195,6 +195,22 @@ npm.cmd run build
 
 ---
 
+## 🌐 Vercel Deployment
+
+Deploying StudyGuard AI to Vercel is straightforward:
+
+1. **Import Repository**: Connect your GitHub repository `StudyGuard-AI` in the Vercel Dashboard.
+2. **Configure Project Settings**:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+   - **Install Command**: `npm install`
+3. **Environment Variables**: None required (all computer vision models execute 100% on-device in the browser).
+4. **Deploy**: Click **Deploy**. Vercel will build the frontend bundle and serve it with pre-configured security and caching headers via `vercel.json`.
+
+---
+
 ## ⚠️ Limitations
 
 - **Lighting Conditions**: Extremely dim lighting may reduce landmark detection accuracy.
