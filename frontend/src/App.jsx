@@ -20,7 +20,7 @@ const dashboardCards = [
     accent: "purple",
   },
   {
-    icon: "📱",
+    icon: "💻",
     title: "Electronic Device Detection",
     description: "Detects phones, laptops, monitors, keyboards, mice, and other electronic devices in camera view using on-device neural object detection.",
     status: "Active on camera",
@@ -372,6 +372,7 @@ function App() {
           <a className="nav-link" href="#camera">Camera &amp; Vision</a>
           <a className="nav-link" href="#session">Session</a>
           <a className="nav-link" href="#alert-settings">Alerts</a>
+          <a className="nav-link" href="#capabilities">Capabilities</a>
           <a className="nav-link" href="#privacy">Privacy</a>
         </nav>
 
@@ -409,10 +410,10 @@ function App() {
                 <span aria-hidden="true">📹</span> Open Camera Monitor
               </a>
               <a href="#session" className="btn btn-secondary">
-                <span aria-hidden="true">⏱</span> Start Study Session
+                <span aria-hidden="true">⏱</span> Study Session
               </a>
               <a href="#alert-settings" className="btn btn-secondary">
-                <span aria-hidden="true">🔔</span> Alert Preferences
+                <span aria-hidden="true">🔔</span> Smart Alert Control
               </a>
             </div>
           </div>
@@ -448,7 +449,7 @@ function App() {
         {/* 3. STUDY SESSION TRACKER COMPONENT */}
         <StudySessionTimer />
 
-        {/* 4. SMART ALERT SETTINGS COMPONENT */}
+        {/* 4. SMART ALERT CONTROL CENTER COMPONENT */}
         <AlertSettings
           alertsEnabled={alertsEnabled}
           setAlertsEnabled={handleAlertsEnabledChange}
@@ -524,7 +525,12 @@ function App() {
       <footer className="site-footer">
         <div className="footer-top">
           <div className="footer-brand">
-            <span className="brand-mark small" aria-hidden="true">S</span>
+            <span className="brand-mark small" aria-hidden="true">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <circle cx="12" cy="11" r="3" />
+              </svg>
+            </span>
             <span className="footer-brand-name">StudyGuard <strong>AI</strong></span>
           </div>
           <p className="footer-tagline">

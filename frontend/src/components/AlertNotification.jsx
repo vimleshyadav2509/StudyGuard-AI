@@ -14,6 +14,8 @@ function AlertNotification({ activeAlert, onDismiss, isMuted, onToggleMute }) {
   if (!activeAlert) return null;
 
   const severityClass = activeAlert.severity || "warning";
+  const isDeviceAlert = activeAlert.type === "ELECTRONIC_DEVICE" || activeAlert.type === "MOBILE";
+  const systemTag = isDeviceAlert ? "⚠ ELECTRONIC DEVICE" : "⚠ SYSTEM ALERT";
 
   return (
     <div
@@ -24,13 +26,15 @@ function AlertNotification({ activeAlert, onDismiss, isMuted, onToggleMute }) {
     >
       <div className="alert-banner-inner">
         <div className="alert-icon-wrap" aria-hidden="true">
-          <span className="alert-icon">{activeAlert.icon}</span>
+          <span className="alert-icon">{activeAlert.icon || "⚠️"}</span>
+          <span className="alert-beacon-ring" />
         </div>
 
         <div className="alert-text-content">
           <div className="alert-header-row">
-            <span className="alert-tag">ATTENTION REQUIRED</span>
-            <span className="alert-timestamp">Just now</span>
+            <span className="alert-tag">{systemTag}</span>
+            <span className="alert-dot-sep" aria-hidden="true">•</span>
+            <span className="alert-timestamp">Real-time Priority Trigger</span>
           </div>
           <h4 className="alert-title">{activeAlert.title}</h4>
           <p className="alert-message">{activeAlert.message}</p>
@@ -38,21 +42,24 @@ function AlertNotification({ activeAlert, onDismiss, isMuted, onToggleMute }) {
 
         <div className="alert-actions">
           <button
-            className="alert-mute-btn"
+            className={`alert-mute-btn ${isMuted ? "is-muted" : ""}`}
             type="button"
             onClick={onToggleMute}
-            title={isMuted ? "Unmute alarm" : "Mute alarm"}
-            aria-label={isMuted ? "Unmute alarm" : "Mute alarm"}
+            title={isMuted ? "Unmute alarm audio" : "Mute alarm audio"}
+            aria-label={isMuted ? "Unmute alarm audio" : "Mute alarm audio"}
           >
-            {isMuted ? "🔇" : "🔊"}
+            <span aria-hidden="true">{isMuted ? "🔇" : "🔊"}</span>
+            <span className="sr-only">{isMuted ? "Unmute" : "Mute"}</span>
           </button>
+
           <button
             className="btn btn-sm btn-dismiss"
             type="button"
             onClick={onDismiss}
             id="dismiss-alert-btn"
+            aria-label="Dismiss active alert"
           >
-            Dismiss
+            <span aria-hidden="true">✕</span> Dismiss
           </button>
         </div>
       </div>
