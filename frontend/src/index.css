@@ -1105,6 +1105,7 @@ button {
 .status-pill.eyes-open,
 .status-pill.alert,
 .status-pill.no-mobile,
+.status-pill.no-device,
 .status-pill.looking-at-screen {
   background: var(--color-success-bg);
   color: var(--color-success);
@@ -1115,6 +1116,7 @@ button {
 .status-pill.eyes-open .status-dot,
 .status-pill.alert .status-dot,
 .status-pill.no-mobile .status-dot,
+.status-pill.no-device .status-dot,
 .status-pill.looking-at-screen .status-dot {
   background: var(--color-success);
 }
@@ -1136,6 +1138,7 @@ button {
 
 .status-pill.drowsiness-suspected,
 .status-pill.mobile-detected,
+.status-pill.device-detected,
 .status-pill.error {
   background: var(--color-danger-bg);
   color: var(--color-danger);
@@ -1143,6 +1146,7 @@ button {
 }
 .status-pill.drowsiness-suspected .status-dot,
 .status-pill.mobile-detected .status-dot,
+.status-pill.device-detected .status-dot,
 .status-pill.error .status-dot {
   background: var(--color-danger);
 }

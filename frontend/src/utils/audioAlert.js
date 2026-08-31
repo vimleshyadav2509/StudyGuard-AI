@@ -196,6 +196,7 @@ export async function startAlertSound(options = {}) {
       }
       return true;
     } catch (err) {
+      isPlaying = false;
       if (err.name === "NotAllowedError") {
         console.warn("[StudyGuard Audio] Autoplay blocked by browser policy. Interacting with the page unlocks sound.");
       } else if (err.name === "AbortError") {

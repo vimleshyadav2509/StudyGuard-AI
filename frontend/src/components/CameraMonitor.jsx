@@ -27,9 +27,20 @@ const DROWSINESS_CLOSED_DURATION_MS = 2000; // Continuous closed time to flag "D
 const FOCUS_CONFIRMATION_MS = 300; // Time in open/alert state before confirming "Focused"
 const ATTENTION_REDUCED_DELAY_MS = 500; // Time in closed/drowsy state before confirming "Attention Reduced"
 
-// Configurable Mobile Phone Detection timings
-const MOBILE_CONFIRMATION_MS = 400; // Continuous detection to confirm "Mobile Detected"
-const MOBILE_CLEAR_MS = 700; // Continuous absence to clear "Mobile Detected"
+// Configurable Electronic Device Detection config, score thresholds, and timings
+export const ELECTRONIC_DEVICE_MIN_SCORE = 0.50;
+
+export const ELECTRONIC_DEVICE_CONFIG = {
+  "cell phone": { displayName: "Mobile Phone", icon: "📱", minScore: 0.52 },
+  laptop: { displayName: "Laptop", icon: "💻", minScore: 0.48 },
+  tv: { displayName: "Monitor / TV", icon: "🖥️", minScore: 0.48 },
+  keyboard: { displayName: "Keyboard", icon: "⌨️", minScore: 0.50 },
+  mouse: { displayName: "Mouse", icon: "🖱️", minScore: 0.50 },
+  remote: { displayName: "Remote Control", icon: "🎛️", minScore: 0.52 },
+};
+
+const DEVICE_CONFIRMATION_MS = 400; // Continuous detection to confirm "Device Detected"
+const DEVICE_CLEAR_MS = 700; // Continuous absence to clear "Device Detected"
 
 // Configurable Eye Direction / Looking Away timings
 const LOOKING_AWAY_CONFIRMATION_MS = 1500; // Continuous deviation to confirm "Looking Away"
@@ -91,11 +102,11 @@ const focusMessages = {
   paused: "Study focus monitoring paused while face or camera is unavailable.",
 };
 
-const mobileMessages = {
-  "no-mobile": "No mobile device detected in camera field.",
-  "mobile-detected": "Mobile phone visible in camera view. Put phone away to maintain focus.",
-  unavailable: "Mobile detection initializing or unavailable.",
-  paused: "Mobile detection paused while camera is inactive.",
+const deviceMessages = {
+  "no-device": "No electronic device detected in camera field.",
+  "device-detected": "Electronic device visible in camera view. Put it away to maintain focus.",
+  unavailable: "Electronic device detection initializing or unavailable.",
+  paused: "Device detection paused while camera is inactive.",
 };
 
 const eyeDirectionMessages = {
@@ -220,13 +231,20 @@ function CameraMonitor({ onStatusUpdate }) {
   const mountedRef = useRef(true);
 
   // Status refs
+  const cameraStatusRef = useRef("camera-off");
   const faceStatusRef = useRef("off");
   const eyeStatusRef = useRef("eyes-unknown");
   const drowsinessStatusRef = useRef("paused");
   const focusStatusRef = useRef("paused");
-  const mobileStatusRef = useRef("paused");
+  const deviceStatusRef = useRef("paused");
+  const detectedDevicesRef = useRef([]);
   const eyeDirectionStatusRef = useRef("paused");
   const consecutiveMissedFramesRef = useRef(0);
+  const onStatusUpdateRef = useRef(onStatusUpdate);
+
+  useEffect(() => {
+    onStatusUpdateRef.current = onStatusUpdate;
+  }, [onStatusUpdate]);
 
   // Temporal stability timing refs
   const earCandidateStateRef = useRef(null);
@@ -236,9 +254,8 @@ function CameraMonitor({ onStatusUpdate }) {
   const focusCandidateStateRef = useRef("paused");
   const focusCandidateStartTimeRef = useRef(0);
 
-  const mobileCandidateStateRef = useRef("no-mobile");
-  const mobileCandidateStartTimeRef = useRef(0);
-  const detectedMobileBoxesRef = useRef([]);
+  const deviceCandidateStateRef = useRef("no-device");
+  const deviceCandidateStartTimeRef = useRef(0);
 
   const eyeDirectionCandidateStateRef = useRef("looking-at-screen");
   const eyeDirectionCandidateStartTimeRef = useRef(0);
@@ -254,25 +271,46 @@ function CameraMonitor({ onStatusUpdate }) {
   const [drowsinessMessage, setDrowsinessMessage] = useState(drowsinessMessages.paused);
   const [focusStatus, setFocusStatus] = useState("paused");
   const [focusMessage, setFocusMessage] = useState(focusMessages.paused);
-  const [mobileStatus, setMobileStatus] = useState("paused");
-  const [mobileMessage, setMobileMessage] = useState(mobileMessages.paused);
+  const [deviceStatus, setDeviceStatus] = useState("paused");
+  const [deviceMessage, setDeviceMessage] = useState(deviceMessages.paused);
+  const [detectedDevices, setDetectedDevices] = useState([]);
   const [eyeDirectionStatus, setEyeDirectionStatus] = useState("paused");
   const [eyeDirectionMessage, setEyeDirectionMessage] = useState(eyeDirectionMessages.paused);
 
   // Broadcast unified status changes to parent
   const notifyStatusChange = useCallback(() => {
-    if (onStatusUpdate) {
-      onStatusUpdate({
-        cameraStatus: cameraStatus,
+    if (onStatusUpdateRef.current) {
+      onStatusUpdateRef.current({
+        cameraStatus: cameraStatusRef.current,
         faceStatus: faceStatusRef.current,
         eyeStatus: eyeStatusRef.current,
         drowsinessStatus: drowsinessStatusRef.current,
         focusStatus: focusStatusRef.current,
-        mobileStatus: mobileStatusRef.current,
+        deviceStatus: deviceStatusRef.current,
+        detectedDevices: detectedDevicesRef.current,
+        // Backwards compatibility for any consumers reading mobileStatus
+        mobileStatus:
+          deviceStatusRef.current === "device-detected"
+            ? "mobile-detected"
+            : deviceStatusRef.current === "no-device"
+              ? "no-mobile"
+              : deviceStatusRef.current,
         eyeDirectionStatus: eyeDirectionStatusRef.current,
       });
     }
-  }, [cameraStatus, onStatusUpdate]);
+  }, []);
+
+  const updateCameraStatus = useCallback(
+    (status, message) => {
+      cameraStatusRef.current = status;
+      setCameraStatus(status);
+      if (message !== undefined) {
+        setCameraMessage(message);
+      }
+      notifyStatusChange();
+    },
+    [notifyStatusChange],
+  );
 
   const updateFaceStatus = useCallback((status, message) => {
     if (faceStatusRef.current === status) return;
@@ -306,11 +344,15 @@ function CameraMonitor({ onStatusUpdate }) {
     notifyStatusChange();
   }, [notifyStatusChange]);
 
-  const updateMobileStatus = useCallback((status, message) => {
-    if (mobileStatusRef.current === status) return;
-    mobileStatusRef.current = status;
-    setMobileStatus(status);
-    setMobileMessage(message || mobileMessages[status] || "");
+  const updateDeviceStatus = useCallback((status, message, devices = []) => {
+    const devicesList = devices || [];
+    detectedDevicesRef.current = devicesList;
+    setDetectedDevices(devicesList);
+
+    if (deviceStatusRef.current === status && !message) return;
+    deviceStatusRef.current = status;
+    setDeviceStatus(status);
+    setDeviceMessage(message || deviceMessages[status] || "");
     notifyStatusChange();
   }, [notifyStatusChange]);
 
@@ -328,9 +370,10 @@ function CameraMonitor({ onStatusUpdate }) {
     continuousClosedStartTimeRef.current = null;
     focusCandidateStateRef.current = "paused";
     focusCandidateStartTimeRef.current = 0;
-    mobileCandidateStateRef.current = "no-mobile";
-    mobileCandidateStartTimeRef.current = 0;
-    detectedMobileBoxesRef.current = [];
+    deviceCandidateStateRef.current = "no-device";
+    deviceCandidateStartTimeRef.current = 0;
+    detectedDevicesRef.current = [];
+    setDetectedDevices([]);
     eyeDirectionCandidateStateRef.current = "looking-at-screen";
     eyeDirectionCandidateStartTimeRef.current = 0;
   }, []);
@@ -343,7 +386,7 @@ function CameraMonitor({ onStatusUpdate }) {
     }
   }, []);
 
-  const drawCombinedOverlay = useCallback((landmarks, mobileBoxes) => {
+  const drawCombinedOverlay = useCallback((landmarks, devices) => {
     const canvas = faceCanvasRef.current;
     const video = videoRef.current;
 
@@ -396,9 +439,12 @@ function CameraMonitor({ onStatusUpdate }) {
       drawContour(RIGHT_EYE_CONTOUR, eyeHighlightColor, eyeFillColor);
     }
 
-    // 2. Draw mobile phone bounding box overlay if detected
-    if (mobileBoxes && mobileBoxes.length > 0 && mobileStatusRef.current === "mobile-detected") {
-      mobileBoxes.forEach((box) => {
+    // 2. Draw electronic device bounding boxes with dynamic labels if detected
+    if (devices && devices.length > 0 && deviceStatusRef.current === "device-detected") {
+      devices.forEach((dev) => {
+        const box = dev.boundingBox;
+        if (!box) return;
+
         context.strokeStyle = "rgba(239, 68, 68, 0.9)";
         context.lineWidth = 2.5;
         context.fillStyle = "rgba(239, 68, 68, 0.12)";
@@ -414,11 +460,11 @@ function CameraMonitor({ onStatusUpdate }) {
         // Label tag
         context.fillStyle = "rgba(220, 38, 38, 0.9)";
         context.font = "bold 12px Inter, sans-serif";
-        const text = "📱 Mobile Detected";
+        const text = `${dev.icon || "📱"} ${dev.displayName || "Electronic Device"}`;
         const textWidth = context.measureText(text).width;
-        context.fillRect(bx, Math.max(0, by - 22), textWidth + 12, 22);
+        context.fillRect(bx, Math.max(0, by - 22), textWidth + 14, 22);
         context.fillStyle = "#ffffff";
-        context.fillText(text, bx + 6, Math.max(15, by - 6));
+        context.fillText(text, bx + 7, Math.max(15, by - 6));
       });
     }
   }, []);
@@ -591,29 +637,34 @@ function CameraMonitor({ onStatusUpdate }) {
     [updateEyeDirectionStatus],
   );
 
-  /**
-   * Process Mobile Phone Object Detection with temporal debounce.
+   /**
+   * Process Electronic Device Object Detection with temporal debounce.
    */
-  const processMobileStability = useCallback(
-    (hasMobileRaw, boxes, now) => {
-      detectedMobileBoxesRef.current = boxes || [];
+  const processDeviceStability = useCallback(
+    (hasDeviceRaw, devices, now) => {
+      const target = hasDeviceRaw ? "device-detected" : "no-device";
 
-      const target = hasMobileRaw ? "mobile-detected" : "no-mobile";
-
-      if (mobileCandidateStateRef.current !== target) {
-        mobileCandidateStateRef.current = target;
-        mobileCandidateStartTimeRef.current = now;
+      if (deviceCandidateStateRef.current !== target) {
+        deviceCandidateStateRef.current = target;
+        deviceCandidateStartTimeRef.current = now;
       }
 
-      const elapsed = now - mobileCandidateStartTimeRef.current;
+      const elapsed = now - deviceCandidateStartTimeRef.current;
 
-      if (target === "mobile-detected" && elapsed >= MOBILE_CONFIRMATION_MS) {
-        updateMobileStatus("mobile-detected");
-      } else if (target === "no-mobile" && elapsed >= MOBILE_CLEAR_MS) {
-        updateMobileStatus("no-mobile");
+      if (target === "device-detected" && elapsed >= DEVICE_CONFIRMATION_MS) {
+        let dynamicMessage = deviceMessages["device-detected"];
+        if (devices.length === 1) {
+          dynamicMessage = `${devices[0].icon} ${devices[0].displayName} visible in camera view. Put it away to maintain focus.`;
+        } else if (devices.length > 1) {
+          const names = Array.from(new Set(devices.map((d) => d.displayName))).join(", ");
+          dynamicMessage = `Multiple electronic devices (${names}) visible in camera view. Put them away to maintain focus.`;
+        }
+        updateDeviceStatus("device-detected", dynamicMessage, devices);
+      } else if (target === "no-device" && elapsed >= DEVICE_CLEAR_MS) {
+        updateDeviceStatus("no-device", deviceMessages["no-device"], []);
       }
     },
-    [updateMobileStatus],
+    [updateDeviceStatus],
   );
 
   const startVisionProcessing = useCallback(
@@ -625,7 +676,7 @@ function CameraMonitor({ onStatusUpdate }) {
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
       updateFocusStatus("paused");
-      updateMobileStatus("unavailable");
+      updateDeviceStatus("unavailable");
       updateEyeDirectionStatus("unknown");
 
       let landmarker = null;
@@ -651,7 +702,7 @@ function CameraMonitor({ onStatusUpdate }) {
           }),
           ObjectDetector.createFromOptions(vision, {
             baseOptions: { modelAssetPath: OBJECT_DETECTOR_MODEL_URL },
-            scoreThreshold: 0.38,
+            scoreThreshold: 0.45,
             runningMode: "VIDEO",
           }).catch((err) => {
             console.warn("MediaPipe ObjectDetector load error:", err);
@@ -671,54 +722,44 @@ function CameraMonitor({ onStatusUpdate }) {
         landmarkerRef.current = landmarker;
         objectDetectorRef.current = objectDetector;
         detectionActiveRef.current = true;
-        consecutiveMissedFramesRef.current = 0;
-        resetTemporalTracking();
-        updateMobileStatus("no-mobile");
+        updateFaceStatus("not-detected");
+        updateDeviceStatus(objectDetector ? "no-device" : "unavailable");
 
-        let lastLandmarks = null;
-
-        const processFrame = (timestamp) => {
-          if (
-            !mountedRef.current ||
-            !detectionActiveRef.current ||
-            cameraRunIdRef.current !== cameraRunId
-          ) {
+        const processFrame = async (timestamp) => {
+          if (!mountedRef.current || cameraRunIdRef.current !== cameraRunId) {
             return;
           }
 
           const activeVideo = videoRef.current;
-          if (
-            !activeVideo ||
-            activeVideo.readyState < 2 ||
-            !activeVideo.videoWidth ||
-            !activeVideo.videoHeight
-          ) {
+          if (!activeVideo || activeVideo.readyState < 2) {
             animationFrameRef.current = requestAnimationFrame(processFrame);
             return;
           }
 
           const now = performance.now();
+          let lastLandmarks = null;
 
-          // 1. Face & Eye Landmarker loop (Every 100ms)
+          // 1. FaceLandmarker loop (Throttled every 100ms)
           if (timestamp - lastDetectionTimeRef.current >= DETECTION_INTERVAL_MS) {
             lastDetectionTimeRef.current = timestamp;
 
             try {
               if (landmarkerRef.current) {
-                const result = landmarkerRef.current.detectForVideo(activeVideo, now);
-                const landmarks = result.faceLandmarks?.[0];
-                lastLandmarks = landmarks;
+                const results = landmarkerRef.current.detectForVideo(activeVideo, now);
 
-                if (landmarks && landmarks.length >= 468) {
+                if (results?.faceLandmarks?.length > 0) {
                   consecutiveMissedFramesRef.current = 0;
+                  const landmarks = results.faceLandmarks[0];
+                  lastLandmarks = landmarks;
+
                   updateFaceStatus("detected");
 
-                  // Compute EAR for eyes
+                  // Compute Eye Aspect Ratio (EAR)
                   const leftEAR = calculateEAR(landmarks, LEFT_EYE_LANDMARKS);
                   const rightEAR = calculateEAR(landmarks, RIGHT_EYE_LANDMARKS);
 
                   if (leftEAR !== null && rightEAR !== null) {
-                    const averageEAR = (leftEAR + rightEAR) / 2.0;
+                    const averageEAR = (leftEAR + rightEAR) / 2;
                     processEyeStability(averageEAR, now);
                   } else {
                     processEyeStability(null, now);
@@ -745,7 +786,7 @@ function CameraMonitor({ onStatusUpdate }) {
             }
           }
 
-          // 2. Mobile Object Detector loop (Throttled every 250ms)
+          // 2. Electronic Device Object Detector loop (Throttled every 250ms)
           if (timestamp - lastObjectDetectionTimeRef.current >= OBJECT_DETECTION_INTERVAL_MS) {
             lastObjectDetectionTimeRef.current = timestamp;
 
@@ -754,29 +795,31 @@ function CameraMonitor({ onStatusUpdate }) {
                 const objectResult = objectDetectorRef.current.detectForVideo(activeVideo, now);
                 const detections = objectResult.detections || [];
 
-                const phoneBoxes = [];
-                let phoneDetected = false;
+                const matchedDevices = [];
 
                 for (const detection of detections) {
                   const categories = detection.categories || [];
-                  const isPhone = categories.some((c) => {
-                    const name = c.categoryName.toLowerCase();
-                    return (
-                      (name.includes("cell phone") ||
-                        name.includes("mobile") ||
-                        name.includes("telephone") ||
-                        name.includes("phone")) &&
-                      c.score >= 0.35
-                    );
-                  });
+                  for (const cat of categories) {
+                    const normalizedCategory = (cat.categoryName || "").trim().toLowerCase();
+                    const deviceDef = ELECTRONIC_DEVICE_CONFIG[normalizedCategory];
+                    const minScore = deviceDef?.minScore || ELECTRONIC_DEVICE_MIN_SCORE;
 
-                  if (isPhone && detection.boundingBox) {
-                    phoneDetected = true;
-                    phoneBoxes.push(detection.boundingBox);
+                    // Exact whitelist check and strict confidence validation
+                    if (deviceDef && cat.score >= minScore && detection.boundingBox) {
+                      matchedDevices.push({
+                        rawName: cat.categoryName,
+                        name: normalizedCategory,
+                        displayName: deviceDef.displayName,
+                        icon: deviceDef.icon,
+                        score: cat.score,
+                        boundingBox: detection.boundingBox,
+                      });
+                      break; // Bounding box resolved to approved device
+                    }
                   }
                 }
 
-                processMobileStability(phoneDetected, phoneBoxes, now);
+                processDeviceStability(matchedDevices.length > 0, matchedDevices, now);
               }
             } catch (err) {
               console.warn("Object detector processing error:", err);
@@ -784,7 +827,7 @@ function CameraMonitor({ onStatusUpdate }) {
           }
 
           // 3. Render combined overlays
-          drawCombinedOverlay(lastLandmarks, detectedMobileBoxesRef.current);
+          drawCombinedOverlay(lastLandmarks, detectedDevicesRef.current);
 
           animationFrameRef.current = requestAnimationFrame(processFrame);
         };
@@ -800,59 +843,59 @@ function CameraMonitor({ onStatusUpdate }) {
           updateEyeStatus("eyes-unknown");
           updateDrowsinessStatus("paused");
           updateFocusStatus("paused");
-          updateMobileStatus("unavailable");
+          updateDeviceStatus("unavailable");
           updateEyeDirectionStatus("unknown");
         }
       }
     },
     [
       drawCombinedOverlay,
+      processDeviceStability,
       processEyeDirectionStability,
       processEyeStability,
-      processMobileStability,
       resetTemporalTracking,
+      updateDeviceStatus,
       updateDrowsinessStatus,
       updateEyeDirectionStatus,
       updateEyeStatus,
       updateFaceStatus,
       updateFocusStatus,
-      updateMobileStatus,
     ],
   );
 
   const stopCamera = useCallback(() => {
     cameraRunIdRef.current += 1;
     stopStream();
-    setCameraStatus("camera-off");
-    setCameraMessage(cameraMessages["camera-off"]);
+    updateCameraStatus("camera-off", cameraMessages["camera-off"]);
     updateFaceStatus("off");
     updateEyeStatus("eyes-unknown");
     updateDrowsinessStatus("paused");
     updateFocusStatus("paused");
-    updateMobileStatus("paused");
+    updateDeviceStatus("paused");
     updateEyeDirectionStatus("paused");
   }, [
     stopStream,
+    updateCameraStatus,
+    updateDeviceStatus,
     updateDrowsinessStatus,
     updateEyeDirectionStatus,
     updateEyeStatus,
     updateFaceStatus,
     updateFocusStatus,
-    updateMobileStatus,
   ]);
 
   const enableCamera = async () => {
     unlockAudio();
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraStatus("error");
-      setCameraMessage(
+      updateCameraStatus(
+        "error",
         "Camera access is not supported in this browser. Use a modern browser on localhost or HTTPS.",
       );
       updateFaceStatus("error");
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
       updateFocusStatus("paused");
-      updateMobileStatus("paused");
+      updateDeviceStatus("paused");
       updateEyeDirectionStatus("paused");
       return;
     }
@@ -860,13 +903,12 @@ function CameraMonitor({ onStatusUpdate }) {
     const cameraRunId = cameraRunIdRef.current + 1;
     cameraRunIdRef.current = cameraRunId;
     stopStream();
-    setCameraStatus("starting");
-    setCameraMessage(cameraMessages.starting);
+    updateCameraStatus("starting", cameraMessages.starting);
     updateFaceStatus("off");
     updateEyeStatus("eyes-unknown");
     updateDrowsinessStatus("paused");
     updateFocusStatus("paused");
-    updateMobileStatus("unavailable");
+    updateDeviceStatus("unavailable");
     updateEyeDirectionStatus("unknown");
 
     try {
@@ -889,8 +931,7 @@ function CameraMonitor({ onStatusUpdate }) {
         return;
       }
 
-      setCameraStatus("active");
-      setCameraMessage(cameraMessages.active);
+      updateCameraStatus("active", cameraMessages.active);
       void startVisionProcessing(cameraRunId);
     } catch (error) {
       if (!mountedRef.current || cameraRunIdRef.current !== cameraRunId) {
@@ -899,13 +940,12 @@ function CameraMonitor({ onStatusUpdate }) {
 
       stopStream();
       const cameraError = getCameraErrorMessage(error);
-      setCameraStatus(cameraError.status);
-      setCameraMessage(cameraError.message);
+      updateCameraStatus(cameraError.status, cameraError.message);
       updateFaceStatus("off");
       updateEyeStatus("eyes-unknown");
       updateDrowsinessStatus("paused");
       updateFocusStatus("paused");
-      updateMobileStatus("paused");
+      updateDeviceStatus("paused");
       updateEyeDirectionStatus("paused");
     }
   };
@@ -1064,24 +1104,35 @@ function CameraMonitor({ onStatusUpdate }) {
               <p className="status-card-desc">{drowsinessMessage}</p>
             </div>
 
-            {/* 3. MOBILE PHONE DETECTION CARD */}
-            <div className={`status-card mobile-${mobileStatus}`}>
+            {/* 3. ELECTRONIC DEVICE DETECTION CARD */}
+            <div className={`status-card device-${deviceStatus} mobile-${deviceStatus === "device-detected" ? "mobile-detected" : deviceStatus === "no-device" ? "no-mobile" : deviceStatus}`}>
               <div className="status-card-top">
                 <div className="status-card-label">
-                  <span className="status-icon-indicator" aria-hidden="true">📱</span>
-                  <span>MOBILE PHONE</span>
+                  <span className="status-icon-indicator" aria-hidden="true">
+                    {detectedDevices.length === 1 ? detectedDevices[0].icon : "📱"}
+                  </span>
+                  <span>ELECTRONIC DEVICE</span>
                 </div>
-                <div className={`status-pill ${mobileStatus}`} role="status" aria-live="polite">
+                <div
+                  className={`status-pill ${deviceStatus} ${deviceStatus === "device-detected" ? "mobile-detected" : deviceStatus === "no-device" ? "no-mobile" : ""}`}
+                  role="status"
+                  aria-live="polite"
+                >
                   <span className="status-dot" aria-hidden="true" />
                   <span>
-                    {mobileStatus === "no-mobile" && "No Mobile Detected"}
-                    {mobileStatus === "mobile-detected" && "Mobile Detected"}
-                    {mobileStatus === "unavailable" && "Detection Unavailable"}
-                    {mobileStatus === "paused" && "Monitoring Paused"}
+                    {deviceStatus === "no-device" && "No Electronic Device Detected"}
+                    {deviceStatus === "device-detected" &&
+                      (detectedDevices.length === 1
+                        ? `${detectedDevices[0].displayName} Detected`
+                        : detectedDevices.length > 1
+                          ? `${detectedDevices.length} Electronic Devices Detected`
+                          : "Electronic Device Detected")}
+                    {deviceStatus === "unavailable" && "Detection Unavailable"}
+                    {deviceStatus === "paused" && "Monitoring Paused"}
                   </span>
                 </div>
               </div>
-              <p className="status-card-desc">{mobileMessage}</p>
+              <p className="status-card-desc">{deviceMessage}</p>
             </div>
 
             {/* 4. EYE DIRECTION / LOOKING AWAY CARD */}

@@ -7,6 +7,8 @@ function AlertSettings({
   setVolume,
   drowsinessEnabled,
   setDrowsinessEnabled,
+  electronicDeviceEnabled,
+  setElectronicDeviceEnabled,
   mobileEnabled,
   setMobileEnabled,
   lookingAwayEnabled,
@@ -16,6 +18,11 @@ function AlertSettings({
   onTestSound,
   isTestingSound,
 }) {
+  const isDeviceActive = electronicDeviceEnabled !== undefined ? electronicDeviceEnabled : mobileEnabled;
+  const onDeviceToggle = (val) => {
+    if (setElectronicDeviceEnabled) setElectronicDeviceEnabled(val);
+    if (setMobileEnabled) setMobileEnabled(val);
+  };
   return (
     <section className="alert-settings-section" id="alert-settings" aria-labelledby="settings-title">
       <div className="section-header">
@@ -130,17 +137,17 @@ function AlertSettings({
               <div className="toggle-label-wrap">
                 <span className="condition-icon-badge" aria-hidden="true">📱</span>
                 <div>
-                  <strong>Mobile Phone Detection</strong>
-                  <span>Triggers when a phone is visible in camera view (Priority 2)</span>
+                  <strong>Electronic Device Detection</strong>
+                  <span>Detects distracting electronic devices such as phones, laptops, tablets, monitors, keyboards, mice, and remote controls (Priority 2)</span>
                 </div>
               </div>
               <label className="toggle-switch">
                 <input
                   type="checkbox"
-                  checked={mobileEnabled}
-                  onChange={(e) => setMobileEnabled(e.target.checked)}
+                  checked={isDeviceActive}
+                  onChange={(e) => onDeviceToggle(e.target.checked)}
                   disabled={!alertsEnabled}
-                  aria-label="Toggle mobile phone detection alert"
+                  aria-label="Toggle electronic device detection alert"
                 />
                 <span className="toggle-slider" />
               </label>

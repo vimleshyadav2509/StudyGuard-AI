@@ -21,8 +21,8 @@ const dashboardCards = [
   },
   {
     icon: "📱",
-    title: "Mobile Detection",
-    description: "Detects mobile phones in camera view using on-device neural object detection.",
+    title: "Electronic Device Detection",
+    description: "Detects phones, laptops, monitors, keyboards, mice, and other electronic devices in camera view using on-device neural object detection.",
     status: "Active on camera",
     accent: "orange",
   },
@@ -68,10 +68,18 @@ const alertDefinitions = {
     icon: "😴",
     severity: "danger",
   },
+  ELECTRONIC_DEVICE: {
+    type: "ELECTRONIC_DEVICE",
+    title: "Electronic Device Detected",
+    message: "An electronic device is visible in camera view. Put it away to maintain study focus.",
+    icon: "📱",
+    severity: "danger",
+  },
+  // Backwards compatibility alias
   MOBILE: {
-    type: "MOBILE",
-    title: "Mobile Phone Detected",
-    message: "A mobile device is visible in camera view. Put your phone away to maintain study focus.",
+    type: "ELECTRONIC_DEVICE",
+    title: "Electronic Device Detected",
+    message: "An electronic device is visible in camera view. Put it away to maintain study focus.",
     icon: "📱",
     severity: "danger",
   },
@@ -97,7 +105,7 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [volume, setVolume] = useState(0.6);
   const [drowsinessEnabled, setDrowsinessEnabled] = useState(true);
-  const [mobileEnabled, setMobileEnabled] = useState(true);
+  const [electronicDeviceEnabled, setElectronicDeviceEnabled] = useState(true);
   const [lookingAwayEnabled, setLookingAwayEnabled] = useState(true);
   const [attentionEnabled, setAttentionEnabled] = useState(true);
 
@@ -116,8 +124,15 @@ function App() {
    */
   const handleStatusUpdate = useCallback(
     (status) => {
-      const { cameraStatus, drowsinessStatus, mobileStatus, eyeDirectionStatus, focusStatus } =
-        status;
+      const {
+        cameraStatus,
+        drowsinessStatus,
+        deviceStatus,
+        mobileStatus,
+        eyeDirectionStatus,
+        focusStatus,
+        detectedDevices,
+      } = status;
 
       // If camera is not active or alerts are globally disabled: stop alarm immediately
       if (cameraStatus !== "active" || !alertsEnabled) {
@@ -132,20 +147,22 @@ function App() {
 
       // Check which enabled conditions are currently active
       const isDrowsyActive = drowsinessEnabled && drowsinessStatus === "drowsiness-suspected";
-      const isMobileActive = mobileEnabled && mobileStatus === "mobile-detected";
+      const isDeviceActive =
+        electronicDeviceEnabled &&
+        (deviceStatus === "device-detected" || mobileStatus === "mobile-detected");
       const isLookingAwayActive = lookingAwayEnabled && eyeDirectionStatus === "looking-away";
       const isAttentionReducedActive = attentionEnabled && focusStatus === "attention-reduced";
 
       // Priority resolution:
       // Priority 1: Drowsiness
-      // Priority 2: Mobile Phone
+      // Priority 2: Electronic Device
       // Priority 3: Looking Away
       // Priority 4: Attention Reduced
       let targetCondition = null;
       if (isDrowsyActive) {
         targetCondition = "DROWSINESS";
-      } else if (isMobileActive) {
-        targetCondition = "MOBILE";
+      } else if (isDeviceActive) {
+        targetCondition = "ELECTRONIC_DEVICE";
       } else if (isLookingAwayActive) {
         targetCondition = "LOOKING_AWAY";
       } else if (isAttentionReducedActive) {
@@ -165,12 +182,43 @@ function App() {
         // At least one condition is active
         if (currentActiveConditionRef.current !== targetCondition) {
           currentActiveConditionRef.current = targetCondition;
-          const alertDef = alertDefinitions[targetCondition];
-          setActiveAlert({
-            ...alertDef,
-            id: `${targetCondition}-${Date.now()}`,
-            timestamp: Date.now(),
-          });
+
+          if (targetCondition === "ELECTRONIC_DEVICE") {
+            const devices = detectedDevices || [];
+            let dynamicIcon = "📱";
+            let dynamicTitle = "Electronic Device Detected";
+            let dynamicMessage =
+              "An electronic device is visible in camera view. Please remove the device and return your attention to your study.";
+
+            if (devices.length === 1) {
+              const d = devices[0];
+              dynamicIcon = d.icon || "📱";
+              dynamicTitle = `${d.displayName} Detected`;
+              dynamicMessage = `${d.icon} ${d.displayName} detected in camera view. Please remove the electronic device and return your attention to your study.`;
+            } else if (devices.length > 1) {
+              const names = Array.from(new Set(devices.map((d) => d.displayName))).join(", ");
+              dynamicIcon = "⚡";
+              dynamicTitle = `${devices.length} Electronic Devices Detected`;
+              dynamicMessage = `Multiple electronic devices (${names}) detected. Please remove them and return your attention to your study.`;
+            }
+
+            setActiveAlert({
+              type: "ELECTRONIC_DEVICE",
+              title: dynamicTitle,
+              message: dynamicMessage,
+              icon: dynamicIcon,
+              severity: "danger",
+              id: `ELECTRONIC_DEVICE-${Date.now()}`,
+              timestamp: Date.now(),
+            });
+          } else {
+            const alertDef = alertDefinitions[targetCondition];
+            setActiveAlert({
+              ...alertDef,
+              id: `${targetCondition}-${Date.now()}`,
+              timestamp: Date.now(),
+            });
+          }
         }
 
         // Manage audio state
@@ -193,8 +241,8 @@ function App() {
       alertsEnabled,
       attentionEnabled,
       drowsinessEnabled,
+      electronicDeviceEnabled,
       lookingAwayEnabled,
-      mobileEnabled,
       soundEnabled,
       volume,
     ],
@@ -334,7 +382,7 @@ function App() {
             </h1>
             <p className="hero-subtitle">Focus deeper. Study smarter.</p>
             <p className="hero-description">
-              Real-time on-device study attention monitoring, mobile phone detection, looking-away tracking, and live condition-tied sound alerts — engineered for private, distraction-free productivity.
+              Real-time on-device study attention monitoring, electronic device detection, looking-away tracking, and live condition-tied sound alerts — engineered for private, distraction-free productivity.
             </p>
 
             <div className="hero-quick-actions">
@@ -361,7 +409,7 @@ function App() {
             <div className="metric-row">
               <div className="metric-badge-icon" aria-hidden="true">📱</div>
               <div>
-                <strong>Mobile & Gaze AI</strong>
+                <strong>Electronic Device & Gaze AI</strong>
                 <p>Real-time neural distraction detection</p>
               </div>
             </div>
@@ -391,8 +439,10 @@ function App() {
           setVolume={handleVolumeChange}
           drowsinessEnabled={drowsinessEnabled}
           setDrowsinessEnabled={setDrowsinessEnabled}
-          mobileEnabled={mobileEnabled}
-          setMobileEnabled={setMobileEnabled}
+          electronicDeviceEnabled={electronicDeviceEnabled}
+          setElectronicDeviceEnabled={setElectronicDeviceEnabled}
+          mobileEnabled={electronicDeviceEnabled}
+          setMobileEnabled={setElectronicDeviceEnabled}
           lookingAwayEnabled={lookingAwayEnabled}
           setLookingAwayEnabled={setLookingAwayEnabled}
           attentionEnabled={attentionEnabled}
@@ -420,20 +470,22 @@ function App() {
                 <h3 className="card-title">{card.title}</h3>
                 <p className="card-desc">{card.description}</p>
                 <div className="card-footer">
-                  <span className="card-chip">{card.status}</span>
+                  <span className="badge">{card.status}</span>
                 </div>
               </article>
             ))}
           </div>
         </section>
 
-        {/* 6. PRIVACY FIRST ARCHITECTURE SECTION */}
+        {/* 6. PRIVACY SECTION */}
         <section className="privacy-section" id="privacy" aria-labelledby="privacy-title">
-          <div className="section-header centered">
-            <span className="section-tag">PRIVACY ARCHITECTURE</span>
-            <h2 id="privacy-title" className="section-title">Privacy-First by Design</h2>
+          <div className="section-header">
+            <div>
+              <span className="section-tag">DATA INTEGRITY</span>
+              <h2 id="privacy-title" className="section-title">Privacy-First Architecture</h2>
+            </div>
             <p className="section-desc">
-              Your camera data belongs to you. StudyGuard AI is engineered to execute all neural inferences on-device.
+              Your video stream never leaves your device. All machine learning inference runs locally in-browser.
             </p>
           </div>
 
@@ -457,7 +509,7 @@ function App() {
             <span className="footer-brand-name">StudyGuard <strong>AI</strong></span>
           </div>
           <p className="footer-tagline">
-            Smart on-device study focus monitoring, mobile phone detection, and session analytics.
+            Smart on-device study focus monitoring, electronic device detection, and session analytics.
           </p>
         </div>
         <div className="footer-bottom">
