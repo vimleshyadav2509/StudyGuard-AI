@@ -1,0 +1,7 @@
+# StudyGuard AI - Search Engine Robots Configuration
+# NOTE: Replace 'https://YOUR-DOMAIN-HERE/' with your actual public deployment domain (e.g. https://studyguard-ai.vercel.app/)
+
+User-agent: *
+Allow: /
+
+Sitemap: https://YOUR-DOMAIN-HERE/sitemap.xml

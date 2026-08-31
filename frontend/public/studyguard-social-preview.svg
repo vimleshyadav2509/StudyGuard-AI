@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" fill="none">
+  <defs>
+    <!-- Background Gradients -->
+    <radialGradient id="bgGlowCyan" cx="20%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#080c17" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="bgGlowPurple" cx="80%" cy="70%" r="50%">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#080c17" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Brand Gradients -->
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+
+    <linearGradient id="shieldGradLarge" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+
+    <linearGradient id="cardGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="rgba(30, 41, 59, 0.7)" />
+      <stop offset="100%" stop-color="rgba(15, 23, 42, 0.85)" />
+    </linearGradient>
+
+    <filter id="glowBig" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Deep Midnight Background -->
+  <rect width="1200" height="630" fill="#080c17" />
+  <rect width="1200" height="630" fill="url(#bgGlowCyan)" />
+  <rect width="1200" height="630" fill="url(#bgGlowPurple)" />
+
+  <!-- Subtle Cyber Grid Overlay -->
+  <g opacity="0.08" stroke="#06b6d4" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105" />
+    <line x1="0" y1="210" x2="1200" y2="210" />
+    <line x1="0" y1="315" x2="1200" y2="315" />
+    <line x1="0" y1="420" x2="1200" y2="420" />
+    <line x1="0" y1="525" x2="1200" y2="525" />
+    <line x1="200" y1="0" x2="200" y2="630" />
+    <line x1="400" y1="0" x2="400" y2="630" />
+    <line x1="600" y1="0" x2="600" y2="630" />
+    <line x1="800" y1="0" x2="800" y2="630" />
+    <line x1="1000" y1="0" x2="1000" y2="630" />
+  </g>
+
+  <!-- Top Badge: 100% On-Device AI -->
+  <g transform="translate(100, 75)">
+    <rect width="320" height="40" rx="20" fill="rgba(6, 182, 212, 0.12)" stroke="rgba(6, 182, 212, 0.4)" stroke-width="1.5" />
+    <circle cx="22" cy="20" r="5" fill="#10b981" />
+    <text x="36" y="25" fill="#22d3ee" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">100% ON-DEVICE AI • ZERO UPLOADS</text>
+  </g>
+
+  <!-- Main Brand Title -->
+  <g transform="translate(100, 195)">
+    <text font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="900" font-size="64" letter-spacing="-1.5">
+      <tspan fill="#f8fafc">StudyGuard </tspan>
+      <tspan fill="url(#textGrad)">AI</tspan>
+    </text>
+    <text y="60" fill="#38bdf8" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.5">
+      Smart On-Device Study &amp; Focus Assistant
+    </text>
+    <text y="115" fill="#94a3b8" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="20" font-weight="400">
+      Private AI-powered study focus monitoring running locally in your browser.
+    </text>
+  </g>
+
+  <!-- Feature Highlights Grid -->
+  <g transform="translate(100, 390)">
+    <!-- Pill 1: Face & Eye Tracking -->
+    <g transform="translate(0, 0)">
+      <rect width="280" height="90" rx="16" fill="url(#cardGrad)" stroke="rgba(6, 182, 212, 0.25)" stroke-width="1.5" />
+      <text x="24" y="38" font-family="Inter, sans-serif" font-size="22">👁️</text>
+      <text x="62" y="36" fill="#f8fafc" font-family="Inter, sans-serif" font-size="16" font-weight="700">468-pt Mesh &amp; EAR</text>
+      <text x="62" y="60" fill="#94a3b8" font-family="Inter, sans-serif" font-size="13">Blink &amp; Fatigue Analysis</text>
+    </g>
+
+    <!-- Pill 2: Device Detection -->
+    <g transform="translate(300, 0)">
+      <rect width="280" height="90" rx="16" fill="url(#cardGrad)" stroke="rgba(168, 85, 247, 0.25)" stroke-width="1.5" />
+      <text x="24" y="38" font-family="Inter, sans-serif" font-size="22">📱</text>
+      <text x="62" y="36" fill="#f8fafc" font-family="Inter, sans-serif" font-size="16" font-weight="700">Device Detection</text>
+      <text x="62" y="60" fill="#94a3b8" font-family="Inter, sans-serif" font-size="13">Detects Phones &amp; Screens</text>
+    </g>
+
+    <!-- Pill 3: Smart Alarms & Timer -->
+    <g transform="translate(600, 0)">
+      <rect width="280" height="90" rx="16" fill="url(#cardGrad)" stroke="rgba(236, 72, 153, 0.25)" stroke-width="1.5" />
+      <text x="24" y="38" font-family="Inter, sans-serif" font-size="22">🔔</text>
+      <text x="62" y="36" fill="#f8fafc" font-family="Inter, sans-serif" font-size="16" font-weight="700">Smart Priority Alerts</text>
+      <text x="62" y="60" fill="#94a3b8" font-family="Inter, sans-serif" font-size="13">Audio &amp; Visual HUD Warnings</text>
+    </g>
+  </g>
+
+  <!-- Right Visual: Futuristic Shield Emblem -->
+  <g transform="translate(930, 160)">
+    <!-- Ambient Glow Behind Shield -->
+    <circle cx="90" cy="110" r="100" fill="#a855f7" opacity="0.25" filter="url(#glowBig)" />
+
+    <!-- Shield Path -->
+    <path d="M90 15 L165 45 C165 140 90 200 90 200 C90 200 15 140 15 45 Z" fill="#0b1120" stroke="url(#shieldGradLarge)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+
+    <!-- Inner Core & Reticle -->
+    <circle cx="90" cy="100" r="32" fill="none" stroke="#06b6d4" stroke-width="4" stroke-dasharray="6 4" />
+    <circle cx="90" cy="100" r="16" fill="url(#textGrad)" />
+    <circle cx="96" cy="94" r="5" fill="#ffffff" opacity="0.9" />
+
+    <!-- Crosshairs -->
+    <line x1="90" y1="52" x2="90" y2="64" stroke="#06b6d4" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="90" y1="136" x2="90" y2="148" stroke="#06b6d4" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="42" y1="100" x2="54" y2="100" stroke="#06b6d4" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="126" y1="100" x2="138" y2="100" stroke="#06b6d4" stroke-width="3.5" stroke-linecap="round" />
+  </g>
+
+  <!-- Bottom Privacy Footer Line -->
+  <text x="100" y="555" fill="#64748b" font-family="Inter, sans-serif" font-size="14" font-weight="500">
+    🔒 Pure Client-Side WebAssembly Execution • No Server Tracking • Open Source
+  </text>
+</svg>
