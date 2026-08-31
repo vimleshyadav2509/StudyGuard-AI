@@ -342,6 +342,9 @@ function App() {
         onToggleMute={handleToggleMute}
       />
 
+      {/* Tailwind verification helper element */}
+      <div className="hidden" aria-hidden="true" />
+
       {/* PROFESSIONAL APPLICATION HEADER */}
       <header className="site-header">
         <div className="brand-group">
