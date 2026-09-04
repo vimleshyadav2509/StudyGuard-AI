@@ -4,9 +4,12 @@ import AlertSettings from "./components/AlertSettings";
 import CameraMonitor from "./components/CameraMonitor";
 import StudySessionTimer from "./components/StudySessionTimer";
 import {
+  previewAlertSound,
   setAlertVolume,
+  setSelectedAlarmSound,
   startAlertSound,
   stopAlertSound,
+  stopPreviewSound,
   testAlertSound,
   unlockAudio,
 } from "./utils/audioAlert";
@@ -112,6 +115,21 @@ function App() {
   // Active alert state
   const [activeAlert, setActiveAlert] = useState(null);
   const [isTestingSound, setIsTestingSound] = useState(false);
+
+  // Selected alarm sound state with persistence
+  const [selectedAlarmId, setSelectedAlarmId] = useState(() => {
+    try {
+      return localStorage.getItem("studyguard_alarm_tune") || "classic";
+    } catch {
+      return "classic";
+    }
+  });
+  const [activePreviewId, setActivePreviewId] = useState(null);
+
+  // Synchronize audio subsystem with initial or updated alarm tune
+  useEffect(() => {
+    setSelectedAlarmSound(selectedAlarmId);
+  }, [selectedAlarmId]);
 
   // Audio lifecycle state refs
   const isAlarmPlayingRef = useRef(false);
@@ -311,6 +329,23 @@ function App() {
     }, 2800);
   }, [isTestingSound, soundEnabled, volume]);
 
+  const handleSelectAlarm = useCallback((alarmId) => {
+    setSelectedAlarmId(alarmId);
+    try {
+      localStorage.setItem("studyguard_alarm_tune", alarmId);
+    } catch {}
+    setSelectedAlarmSound(alarmId);
+  }, []);
+
+  const handlePreviewAlarm = useCallback(
+    (alarmId) => {
+      void previewAlertSound(alarmId, volume, (currentId) => {
+        setActivePreviewId(currentId);
+      });
+    },
+    [volume],
+  );
+
   // Global one-time interaction listener to prime audio on any user gesture
   useEffect(() => {
     const handleGesture = () => {
@@ -328,6 +363,7 @@ function App() {
   useEffect(() => {
     return () => {
       stopAlertSound();
+      stopPreviewSound();
       isAlarmPlayingRef.current = false;
     };
   }, []);
@@ -469,6 +505,10 @@ function App() {
           setAttentionEnabled={setAttentionEnabled}
           onTestSound={handleTestSound}
           isTestingSound={isTestingSound}
+          selectedAlarmId={selectedAlarmId}
+          onSelectAlarm={handleSelectAlarm}
+          activePreviewId={activePreviewId}
+          onPreviewAlarm={handlePreviewAlarm}
         />
 
         {/* 5. CORE CAPABILITIES (SECONDARY INFORMATIONAL SUITE) */}

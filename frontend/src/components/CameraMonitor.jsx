@@ -11,7 +11,7 @@ const OBJECT_DETECTOR_MODEL_URL =
 
 // Configurable detection and timing constants
 const DETECTION_INTERVAL_MS = 100;
-const OBJECT_DETECTION_INTERVAL_MS = 250;
+const OBJECT_DETECTION_INTERVAL_MS = 130; // Optimized from 250ms -> 130ms for rapid detection with smooth 60fps rendering
 const MISSED_FRAMES_THRESHOLD = 3;
 
 // Configurable EAR thresholds
@@ -28,19 +28,23 @@ const FOCUS_CONFIRMATION_MS = 300; // Time in open/alert state before confirming
 const ATTENTION_REDUCED_DELAY_MS = 500; // Time in closed/drowsy state before confirming "Attention Reduced"
 
 // Configurable Electronic Device Detection config, score thresholds, and timings
-export const ELECTRONIC_DEVICE_MIN_SCORE = 0.50;
+export const ELECTRONIC_DEVICE_MIN_SCORE = 0.46;
 
 export const ELECTRONIC_DEVICE_CONFIG = {
-  "cell phone": { displayName: "Mobile Phone", icon: "📱", minScore: 0.52 },
-  laptop: { displayName: "Laptop", icon: "💻", minScore: 0.48 },
-  tv: { displayName: "Monitor / TV", icon: "🖥️", minScore: 0.48 },
-  keyboard: { displayName: "Keyboard", icon: "⌨️", minScore: 0.50 },
-  mouse: { displayName: "Mouse", icon: "🖱️", minScore: 0.50 },
-  remote: { displayName: "Remote Control", icon: "🎛️", minScore: 0.52 },
+  "cell phone": { displayName: "Mobile Phone", icon: "📱", minScore: 0.46, fastScore: 0.52 },
+  phone: { displayName: "Mobile Phone", icon: "📱", minScore: 0.46, fastScore: 0.52 },
+  "mobile phone": { displayName: "Mobile Phone", icon: "📱", minScore: 0.46, fastScore: 0.52 },
+  telephone: { displayName: "Mobile Phone", icon: "📱", minScore: 0.46, fastScore: 0.52 },
+  laptop: { displayName: "Laptop", icon: "💻", minScore: 0.46, fastScore: 0.50 },
+  tv: { displayName: "Monitor / TV", icon: "🖥️", minScore: 0.46, fastScore: 0.50 },
+  keyboard: { displayName: "Keyboard", icon: "⌨️", minScore: 0.48, fastScore: 0.52 },
+  mouse: { displayName: "Mouse", icon: "🖱️", minScore: 0.48, fastScore: 0.52 },
+  remote: { displayName: "Remote Control", icon: "🎛️", minScore: 0.48, fastScore: 0.52 },
 };
 
-const DEVICE_CONFIRMATION_MS = 400; // Continuous detection to confirm "Device Detected"
-const DEVICE_CLEAR_MS = 700; // Continuous absence to clear "Device Detected"
+const DEVICE_FAST_CONFIRMATION_MS = 160; // Fast confirmation when phone is clearly visible
+const DEVICE_NORMAL_CONFIRMATION_MS = 280; // Standard confirmation for moderate confidence
+const DEVICE_CLEAR_MS = 600; // Continuous absence to clear "Device Detected"
 
 // Configurable Eye Direction / Looking Away timings
 const LOOKING_AWAY_CONFIRMATION_MS = 1500; // Continuous deviation to confirm "Looking Away"
@@ -254,8 +258,11 @@ function CameraMonitor({ onStatusUpdate }) {
   const focusCandidateStateRef = useRef("paused");
   const focusCandidateStartTimeRef = useRef(0);
 
-  const deviceCandidateStateRef = useRef("no-device");
+  const deviceConsecutiveHitsRef = useRef(0);
+  const deviceConsecutiveMissesRef = useRef(0);
   const deviceCandidateStartTimeRef = useRef(0);
+  const deviceClearStartTimeRef = useRef(null);
+  const lastValidDevicesRef = useRef([]);
 
   const eyeDirectionCandidateStateRef = useRef("looking-at-screen");
   const eyeDirectionCandidateStartTimeRef = useRef(0);
@@ -370,8 +377,11 @@ function CameraMonitor({ onStatusUpdate }) {
     continuousClosedStartTimeRef.current = null;
     focusCandidateStateRef.current = "paused";
     focusCandidateStartTimeRef.current = 0;
-    deviceCandidateStateRef.current = "no-device";
+    deviceConsecutiveHitsRef.current = 0;
+    deviceConsecutiveMissesRef.current = 0;
     deviceCandidateStartTimeRef.current = 0;
+    deviceClearStartTimeRef.current = null;
+    lastValidDevicesRef.current = [];
     detectedDevicesRef.current = [];
     setDetectedDevices([]);
     eyeDirectionCandidateStateRef.current = "looking-at-screen";
@@ -638,30 +648,78 @@ function CameraMonitor({ onStatusUpdate }) {
   );
 
    /**
-   * Process Electronic Device Object Detection with temporal debounce.
+   * Process Electronic Device Object Detection with high-performance temporal debounce.
+   * Fast first detection + stable confirmation + low false positives + smooth UI:
+   * - Clear presence (fastScore) triggers in 2 hits (~160ms)
+   * - Moderate score triggers after 3 hits (~280ms) to ensure random objects don't alert
+   * - Short grace period tolerates 1-2 blurred/missed frames during movement (no flicker)
+   * - Clears promptly after sustained absence (DEVICE_CLEAR_MS = 600ms)
    */
   const processDeviceStability = useCallback(
-    (hasDeviceRaw, devices, now) => {
-      const target = hasDeviceRaw ? "device-detected" : "no-device";
+    (hasDeviceRaw, devices, now, hasFastConfidence = false) => {
+      const isConfirmedActive = deviceStatusRef.current === "device-detected";
 
-      if (deviceCandidateStateRef.current !== target) {
-        deviceCandidateStateRef.current = target;
-        deviceCandidateStartTimeRef.current = now;
-      }
+      if (hasDeviceRaw) {
+        deviceConsecutiveHitsRef.current += 1;
+        deviceConsecutiveMissesRef.current = 0;
+        deviceClearStartTimeRef.current = null;
+        lastValidDevicesRef.current = devices;
 
-      const elapsed = now - deviceCandidateStartTimeRef.current;
-
-      if (target === "device-detected" && elapsed >= DEVICE_CONFIRMATION_MS) {
-        let dynamicMessage = deviceMessages["device-detected"];
-        if (devices.length === 1) {
-          dynamicMessage = `${devices[0].icon} ${devices[0].displayName} visible in camera view. Put it away to maintain focus.`;
-        } else if (devices.length > 1) {
-          const names = Array.from(new Set(devices.map((d) => d.displayName))).join(", ");
-          dynamicMessage = `Multiple electronic devices (${names}) visible in camera view. Put them away to maintain focus.`;
+        if (deviceCandidateStartTimeRef.current === 0) {
+          deviceCandidateStartTimeRef.current = now;
         }
-        updateDeviceStatus("device-detected", dynamicMessage, devices);
-      } else if (target === "no-device" && elapsed >= DEVICE_CLEAR_MS) {
-        updateDeviceStatus("no-device", deviceMessages["no-device"], []);
+
+        const candidateElapsed = now - deviceCandidateStartTimeRef.current;
+        const hits = deviceConsecutiveHitsRef.current;
+
+        const isConfirmed =
+          (hasFastConfidence && (hits >= 2 || candidateElapsed >= DEVICE_FAST_CONFIRMATION_MS)) ||
+          (hits >= 3 || candidateElapsed >= DEVICE_NORMAL_CONFIRMATION_MS);
+
+        if (isConfirmed || isConfirmedActive) {
+          let dynamicMessage = deviceMessages["device-detected"];
+          if (devices.length === 1) {
+            dynamicMessage = `${devices[0].icon} ${devices[0].displayName} visible in camera view. Put it away to maintain focus.`;
+          } else if (devices.length > 1) {
+            const names = Array.from(new Set(devices.map((d) => d.displayName))).join(", ");
+            dynamicMessage = `Multiple electronic devices (${names}) visible in camera view. Put them away to maintain focus.`;
+          }
+          updateDeviceStatus("device-detected", dynamicMessage, devices);
+        }
+      } else {
+        deviceConsecutiveMissesRef.current += 1;
+        const misses = deviceConsecutiveMissesRef.current;
+
+        if (!isConfirmedActive) {
+          // If in candidate state, reset candidate after 2 consecutive misses
+          if (misses >= 2) {
+            deviceCandidateStartTimeRef.current = 0;
+            deviceConsecutiveHitsRef.current = 0;
+          }
+        } else {
+          // Currently in active alert state
+          if (deviceClearStartTimeRef.current === null) {
+            deviceClearStartTimeRef.current = now;
+          }
+
+          const clearElapsed = now - deviceClearStartTimeRef.current;
+
+          // Clear after absence timeout (600ms) or 4 consecutive missed frames
+          if (clearElapsed >= DEVICE_CLEAR_MS || misses >= 4) {
+            deviceConsecutiveHitsRef.current = 0;
+            deviceCandidateStartTimeRef.current = 0;
+            deviceClearStartTimeRef.current = null;
+            lastValidDevicesRef.current = [];
+            updateDeviceStatus("no-device", deviceMessages["no-device"], []);
+          } else {
+            // Keep bounding boxes briefly during motion blur so UI remains stable
+            updateDeviceStatus(
+              "device-detected",
+              deviceMessages["device-detected"],
+              lastValidDevicesRef.current,
+            );
+          }
+        }
       }
     },
     [updateDeviceStatus],
@@ -702,7 +760,7 @@ function CameraMonitor({ onStatusUpdate }) {
           }),
           ObjectDetector.createFromOptions(vision, {
             baseOptions: { modelAssetPath: OBJECT_DETECTOR_MODEL_URL },
-            scoreThreshold: 0.45,
+            scoreThreshold: 0.40,
             runningMode: "VIDEO",
           }).catch((err) => {
             console.warn("MediaPipe ObjectDetector load error:", err);
@@ -786,7 +844,7 @@ function CameraMonitor({ onStatusUpdate }) {
             }
           }
 
-          // 2. Electronic Device Object Detector loop (Throttled every 250ms)
+          // 2. Electronic Device Object Detector loop (Throttled every 130ms)
           if (timestamp - lastObjectDetectionTimeRef.current >= OBJECT_DETECTION_INTERVAL_MS) {
             lastObjectDetectionTimeRef.current = timestamp;
 
@@ -796,6 +854,7 @@ function CameraMonitor({ onStatusUpdate }) {
                 const detections = objectResult.detections || [];
 
                 const matchedDevices = [];
+                let hasFastHit = false;
 
                 for (const detection of detections) {
                   const categories = detection.categories || [];
@@ -806,6 +865,10 @@ function CameraMonitor({ onStatusUpdate }) {
 
                     // Exact whitelist check and strict confidence validation
                     if (deviceDef && cat.score >= minScore && detection.boundingBox) {
+                      if (cat.score >= (deviceDef.fastScore || 0.52)) {
+                        hasFastHit = true;
+                      }
+
                       matchedDevices.push({
                         rawName: cat.categoryName,
                         name: normalizedCategory,
@@ -819,7 +882,7 @@ function CameraMonitor({ onStatusUpdate }) {
                   }
                 }
 
-                processDeviceStability(matchedDevices.length > 0, matchedDevices, now);
+                processDeviceStability(matchedDevices.length > 0, matchedDevices, now, hasFastHit);
               }
             } catch (err) {
               console.warn("Object detector processing error:", err);

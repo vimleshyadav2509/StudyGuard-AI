@@ -2101,6 +2101,197 @@ button {
   color: #fda4af;
 }
 
+/* --------------------------------------------------------------------------
+   Custom Alarm Tune Selector UI
+   -------------------------------------------------------------------------- */
+.alarm-tune-selector-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  transition: all var(--transition-fast);
+}
+
+.alarm-tune-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.alarm-tune-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.alarm-tune-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alarm-tune-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.tune-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tune-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.tune-option-item:hover {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(6, 182, 212, 0.35);
+  transform: translateX(2px);
+}
+
+.tune-option-item.is-selected {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.15), inset 0 0 12px rgba(6, 182, 212, 0.08);
+}
+
+.tune-info-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.tune-radio-indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(148, 163, 184, 0.4);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.tune-option-item.is-selected .tune-radio-indicator {
+  border-color: #06b6d4;
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+}
+
+.tune-radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #06b6d4;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all var(--transition-fast);
+}
+
+.tune-option-item.is-selected .tune-radio-dot {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tune-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.tune-text-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tune-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tune-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tune-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  letter-spacing: 0.04em;
+}
+
+.tune-desc {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tune-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(51, 65, 85, 0.5);
+  color: var(--text-main);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.tune-preview-btn:hover:not(:disabled) {
+  background: rgba(6, 182, 212, 0.2);
+  border-color: rgba(6, 182, 212, 0.5);
+  color: #22d3ee;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+
+.tune-preview-btn.is-previewing {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.5);
+  color: #fda4af;
+  animation: beaconPulse 1.6s infinite;
+}
+
+.tune-preview-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Settings Footer Note */
 .settings-footer-note {
   display: flex;

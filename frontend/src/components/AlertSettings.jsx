@@ -1,3 +1,5 @@
+import { BUILTIN_ALARMS } from "../utils/audioAlert";
+
 function AlertSettings({
   alertsEnabled,
   setAlertsEnabled,
@@ -17,6 +19,10 @@ function AlertSettings({
   setAttentionEnabled,
   onTestSound,
   isTestingSound,
+  selectedAlarmId = "classic",
+  onSelectAlarm,
+  activePreviewId = null,
+  onPreviewAlarm,
 }) {
   const isDeviceActive =
     electronicDeviceEnabled !== undefined ? electronicDeviceEnabled : mobileEnabled;
@@ -29,6 +35,8 @@ function AlertSettings({
   const handleToggleMute = () => {
     setSoundEnabled(!soundEnabled);
   };
+
+  const activeAlarm = BUILTIN_ALARMS.find((a) => a.id === selectedAlarmId) || BUILTIN_ALARMS[0];
 
   return (
     <section className="alert-settings-section" id="alert-settings" aria-labelledby="settings-title">
@@ -86,7 +94,7 @@ function AlertSettings({
                 </div>
                 <div className="toggle-info-col">
                   <strong>Audible Alarm</strong>
-                  <span>Play audio alert (/sounds/studyguard-alarm.mp3) on trigger</span>
+                  <span>Play audio alert ({activeAlarm.name}) on distraction trigger</span>
                 </div>
               </div>
               <label className="toggle-switch" aria-label="Toggle audible alarm">
@@ -98,6 +106,73 @@ function AlertSettings({
                 />
                 <span className="toggle-slider" />
               </label>
+            </div>
+
+            {/* Alarm Tune Selector */}
+            <div className={`alarm-tune-selector-card ${!soundEnabled ? "is-disabled-row" : ""}`}>
+              <div className="alarm-tune-header">
+                <div className="alarm-tune-title-row">
+                  <span className="alarm-tune-title">
+                    <span aria-hidden="true">🎵</span> Alarm Sound
+                  </span>
+                  <span className="badge">{activeAlarm.name}</span>
+                </div>
+                <p className="alarm-tune-subtitle">
+                  Choose the alert tone that plays when StudyGuard detects a distraction.
+                </p>
+              </div>
+
+              <div className="tune-list" role="radiogroup" aria-label="Alarm tone selection">
+                {BUILTIN_ALARMS.map((tune) => {
+                  const isSelected = selectedAlarmId === tune.id;
+                  const isPreviewing = activePreviewId === tune.id;
+
+                  return (
+                    <div
+                      key={tune.id}
+                      className={`tune-option-item ${isSelected ? "is-selected" : ""}`}
+                      onClick={() => onSelectAlarm && onSelectAlarm(tune.id)}
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectAlarm && onSelectAlarm(tune.id);
+                        }
+                      }}
+                    >
+                      <div className="tune-info-left">
+                        <div className="tune-radio-indicator" aria-hidden="true">
+                          <span className="tune-radio-dot" />
+                        </div>
+                        <span className="tune-icon" aria-hidden="true">{tune.icon}</span>
+                        <div className="tune-text-group">
+                          <div className="tune-name-row">
+                            <span className="tune-name">{tune.name}</span>
+                            {isSelected && <span className="tune-badge">ACTIVE</span>}
+                          </div>
+                          <span className="tune-desc">{tune.description}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className={`tune-preview-btn ${isPreviewing ? "is-previewing" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onPreviewAlarm) onPreviewAlarm(tune.id);
+                        }}
+                        aria-label={isPreviewing ? `Stop previewing ${tune.name}` : `Preview ${tune.name}`}
+                        title={isPreviewing ? "Stop preview" : "Preview tune"}
+                      >
+                        <span aria-hidden="true">{isPreviewing ? "⏹" : "▶"}</span>
+                        <span>{isPreviewing ? "Stop" : "Preview"}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Volume Control Module */}

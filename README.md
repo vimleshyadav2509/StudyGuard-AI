@@ -43,8 +43,10 @@ StudyGuard AI solves these challenges with **100% On-Device Artificial Intellige
 - 🎯 **Study Focus Monitoring**: Evaluates sustained visual attention with temporal debounce to eliminate false positives.
 - 👀 **Eye Direction & Gaze Alignment**: Real-time 3D head pose estimation detecting sustained looking-away behavior ($\ge 1.5\text{s}$).
 - 💻 **Electronic Device Detection**: On-device object detection identifying mobile phones, laptops, monitors, keyboards, mice, and remote controls.
+- ⚡ **High-Performance Mobile Phone Detection**: Rapid 130ms inference loop with dual-tier temporal confirmation and motion-blur tolerance.
 - 📱 **Dynamic Device Identification**: Contextual bounding boxes and dynamic device naming on the live camera canvas.
 - 🔔 **Smart Unified Alert Hierarchy**: Four-tier priority arbiter ensuring urgent alerts take precedence.
+- 🎵 **Customizable Alarm Tunes**: Multi-tone selection (Classic, Focus, Digital, Gentle, Urgent) with audio preview and persistent preference storage.
 - 🔊 **Dual-Engine Audio Alarms**: High-fidelity custom alarm audio with automatic Web Audio API synthesizer fallback.
 - ⏱️ **Deep Work Chronometer**: Drift-free study session timer with high-precision timestamp tracking.
 - 🎨 **Futuristic Cybernetic Dashboard**: Dark glassmorphic interface with electric cyan, purple, and neon accents.
