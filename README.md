@@ -1,6 +1,6 @@
 # 🧠 StudyGuard AI
 
-> **Autonomous Private On-Device Study Intelligence**
+### Autonomous Private On-Device Study Intelligence
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel_Production-00c7b7?style=for-the-badge&logo=vercel&logoColor=white)](https://study-guard-ai-topaz.vercel.app)
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
@@ -11,21 +11,21 @@
 
 ---
 
-## 📌 Introduction
+## 📌 Project Introduction
 
-**StudyGuard AI** is a privacy-first, browser-based computer vision study assistant engineered to help students, developers, and researchers maintain deep cognitive focus. 
+**StudyGuard AI** is a privacy-first, browser-based computer vision study assistant engineered to help students, developers, and researchers maintain uninterrupted focus during deep work sessions.
 
-Unlike conventional proctoring or focus-tracking solutions that transmit raw video feeds to remote cloud servers, StudyGuard AI executes state-of-the-art neural vision models **100% locally inside the user's browser sandbox** using Google MediaPipe, WebAssembly (WASM), and WebGL acceleration. 
+Unlike conventional proctoring or focus-tracking solutions that transmit raw video feeds to remote cloud servers, StudyGuard AI executes state-of-the-art neural vision models **100% locally inside the user's browser sandbox** using Google MediaPipe, WebAssembly (WASM), and WebGL hardware acceleration. 
 
 The application operates completely on-device without requiring end users to run a local backend, install specialized drivers, or expose their personal study space to third-party cloud infrastructure.
 
 ---
 
-## 🌐 Live Demo
+## 🚀 Live Demo
 
 Experience StudyGuard AI directly in your browser:
 
-👉 **[Launch StudyGuard AI (Production App)](https://study-guard-ai-topaz.vercel.app)**  
+🌐 **[Launch StudyGuard AI (Production App)](https://study-guard-ai-topaz.vercel.app)**  
 *(Alternative Domain Alias: [study-guard-ai-vimleshyadav.vercel.app](https://study-guard-ai-vimleshyadav.vercel.app))*
 
 > **No installation or account creation required.** Works out-of-the-box on modern desktop browsers (Chrome, Edge, Brave, Firefox).
@@ -35,91 +35,120 @@ Experience StudyGuard AI directly in your browser:
 ## ✨ Key Features
 
 ### 🎯 Real-Time Study Focus Monitoring
-Continuous facial presence verification and focus tracking. Distinguishes active study from study-space desertion with smart temporal smoothing to prevent false alarms during natural micro-movements.
+StudyGuard AI continuously evaluates visual attention and study engagement in real time.
+- Continuous facial presence verification and focus tracking
+- Distinguishes active study from study-space desertion
+- Real-time attention reduction detection
+- Temporal debounce smoothing to eliminate false positives during natural micro-movements
 
 ### 📱 Electronic Device Detection
-High-speed object recognition identifying smartphones and digital distractions. Features an optimized 130ms inference loop (~7.5 FPS) with normalized category resolution (`cell phone`, `phone`, `mobile phone`, `telephone`) and dual-hit temporal confirmation to rapidly flag phone usage.
+The system detects distracting electronic devices visible in the camera stream.
+- Identifies mobile phones, laptops, monitors, keyboards, mice, and remote controls
+- High-speed 130ms inference loop (~7.5 FPS) optimized for rapid phone detection
+- Normalized category resolution (`cell phone`, `phone`, `mobile phone`, `telephone`)
+- Fast 2-hit temporal confirmation (~160ms) for high-confidence detections
+- Dynamic bounding box rendering on the live video canvas
 
 ### 👀 Eye and Gaze Monitoring
-Tracks 3D head yaw and eye vector geometry using a 468-point facial mesh. Flags sustained looking-away behavior ($\ge 1.5\text{s}$) to prompt students back to their reading material or workspace.
+StudyGuard AI analyzes eye behavior and visual attention in real time.
+- Eye aperture monitoring via normalized geometric metrics
+- 3D head yaw and gaze vector tracking using a 468-point facial mesh
+- Detection of sustained looking-away behavior ($\ge 1.5\text{s}$)
+- Head pose orientation awareness to re-center attention
 
 ### 😴 Drowsiness Detection
-Calculates normalized Eye Aspect Ratio (EAR) across both eyes in real time. Accurately differentiates natural involuntary blinks from fatigue-induced microsleeps and prolonged eyelid closures ($\ge 2.0\text{s}$).
+Continuous fatigue evaluation through eye aspect geometry.
+- Real-time calculation of normalized Eye Aspect Ratio (EAR) across both eyes
+- Multi-stage state machine that distinguishes involuntary natural blinking from fatigue-induced microsleeps
+- Autonomous trigger for prolonged eyelid closures ($\ge 2.0\text{s}$) with automated clearance upon eye reopening
 
 ### 🚨 Unified Smart Alert System
-Autonomous, prioritized alert resolution matrix (P1: Drowsiness $\rightarrow$ P2: Phone/Device $\rightarrow$ P3: Looking Away $\rightarrow$ P4: Attention Loss). Delivers color-coded HUD banners with instant dismiss and quick-mute capabilities.
+Autonomous, prioritized alert resolution matrix preventing notification overload.
+- Four-tier severity arbitration: **P1: Drowsiness** $\rightarrow$ **P2: Electronic Device** $\rightarrow$ **P3: Looking Away** $\rightarrow$ **P4: Attention Loss**
+- Color-coded visual HUD banners with instant dismiss
+- Quick-mute toggle and condition-based lifecycle management
 
 ### 🔊 Custom Alarm System
-Integrated audio alarm engine with **5 distinct built-in alarm tunes** (Classic Chime, Focus Pulse, Digital Radar, Gentle Bells, Urgent Warning). Features live audio preview, volume attenuation, persistent `localStorage` saving, and a resilient Web Audio API synthetic fallback in case autoplay policies restrict media playback.
+Integrated dual-engine audio alert system with 5 selectable alarm styles.
+- **Classic Alert** — Balanced acoustic chime
+- **Focus Alarm** — Rhythmic focus pulse
+- **Digital Warning** — Cybernetic digital radar
+- **Gentle Reminder** — Soft ambient chime
+- **High Priority** — High-acuity rapid alert
+- Live audio preview, adjustable volume slider, and persistent `localStorage` preference saving
+- Automatic Web Audio API procedural synthesizer fallback if browser autoplay policies restrict media playback
 
 ### ⏱️ Study Session Management
-Drift-free Deep Work study timer with high-precision timestamp calculation. Allows students to start, pause, resume, reset, and log continuous focus blocks without clock drift across browser background tabs.
+Built-in deep work chronometer for tracking productive focus blocks.
+- Drift-free timestamp calculation across background browser tabs
+- Start, pause, resume, and end session controls
+- Real-time session elapsed time and telemetry updates
 
 ### 🔒 Privacy-First On-Device AI
-Zero video stream uploads, zero cloud inference latency, and zero telemetry tracking. All computer vision tensors are calculated in volatile browser memory and immediately discarded.
+- Zero video stream or camera frame uploads
+- Zero remote cloud inference latency
+- Volatile memory execution with immediate tensor garbage collection
 
 ---
 
 ## 🔒 Privacy-First Architecture
 
-StudyGuard AI was engineered around strict user privacy principles:
+Privacy is the foundational design principle of StudyGuard AI:
 
-* **100% Local Inference**: All neural networks run on the client side inside the browser via WebAssembly and WebGL execution pipelines.
-* **Zero Video Streaming**: Webcam frames never leave your device. Video data is processed frame-by-frame in RAM and garbage-collected within milliseconds.
-* **No Biometric Identity Recognition**: The system tracks abstract geometric facial landmarks (distance between eyelid coordinates and head orientation). It does not create facial profiles, identify individuals, or perform facial recognition.
-* **Zero Persistent Video Storage**: No webcam frames, video clips, or photos are ever saved to disk, cookies, or cloud storage.
-* **Local Preference Persistence**: User settings (volume, active alarm tune, alert toggles) are stored strictly on the user's computer via standard browser `localStorage`.
+* **100% Local Inference**: All AI models execute directly inside the user's browser using WebAssembly and WebGL.
+* **Zero Video Uploads**: Camera streams, video frames, screenshots, and biometric recordings are **never** transmitted to external servers.
+* **No Biometric Identity Recognition**: The system measures geometric landmarks (such as eye openness and head orientation angles). It does not create facial profiles or perform facial recognition.
+* **Zero Persistent Video Storage**: Camera frames exist only in volatile browser memory for the few milliseconds required for geometric calculation.
+* **Local Storage Only**: User preferences (active alarm tune, volume, alert toggles) are stored strictly on the user's local machine via standard browser `localStorage`.
 
 ---
 
 ## 🏗️ System Architecture
 
-The following diagram illustrates how the client-side pipeline captures video, runs computer vision tasks, resolves alert conditions, and delivers multi-modal interventions:
-
-```mermaid
-flowchart TD
-    subgraph Client_Input["1. Client Video Input"]
-        Cam["Webcam Hardware"] --> Stream["Browser MediaStream (HTML5 Video)"]
-    end
-
-    subgraph WASM_Inference["2. On-Device AI Inference (MediaPipe WASM / WebGL)"]
-        Stream --> Mesh["FaceLandmarker (468-Point 3D Mesh)"]
-        Stream --> Obj["ObjectDetector (EfficientDet-Lite)"]
-        
-        Mesh --> EAR["Eye Aspect Ratio (EAR) Calculation"]
-        Mesh --> Gaze["Head Orientation & Gaze Vector"]
-        Obj --> Phone["Phone & Device Classifier"]
-    end
-
-    subgraph Logic_Engine["3. StudyGuard State & Evaluation Engine"]
-        EAR --> DrowsyEval["Drowsiness State Machine (>= 2.0s closure)"]
-        Gaze --> GazeEval["Looking Away Evaluator (>= 1.5s)"]
-        Phone --> PhoneEval["Fast Temporal Confirmation (>= 160ms)"]
-        
-        DrowsyEval --> Arbiter{"Priority Arbiter (P1 > P2 > P3 > P4)"}
-        GazeEval --> Arbiter
-        PhoneEval --> Arbiter
-    end
-
-    subgraph Output_Layer["4. User Interface & Multi-Modal Feedback"]
-        Arbiter --> HUD["Visual HUD Alert Banner"]
-        Arbiter --> Audio["Dual Audio Engine (MP3 / Web Audio Oscillator)"]
-        Arbiter --> Telemetry["Real-Time Focus Metrics & Session Chronometer"]
-    end
+```text
+                    ┌──────────────────────┐
+                    │     User Camera      │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │ Browser Video Stream │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+              ┌────────────────────────────────┐
+              │     On-Device AI Processing    │
+              │  (MediaPipe WASM & WebGL)      │
+              │                                │
+              │  • Face Detection (468 Mesh)   │
+              │  • Eye Aperture & EAR Logic    │
+              │  • Head Pose & Gaze Tracking   │
+              │  • EfficientDet Object Detector│
+              │  • Real-Time Focus Evaluation  │
+              └───────────────┬────────────────┘
+                              │
+                              ▼
+                 ┌──────────────────────────┐
+                 │ StudyGuard Alert Engine  │
+                 │ (Priority Arbiter Matrix)│
+                 └────────────┬─────────────┘
+                              │
+                 ┌────────────┼─────────────┐
+                 ▼            ▼             ▼
+              Visual        Audio         Session
+              HUD Alerts    Alarm Engine  Tracking
 ```
 
 ---
 
-## 📸 Application Preview
+## 🖼️ Application Preview
 
-Below are views of the StudyGuard AI workspace and user interface:
-
-### 1. Main Dashboard & Workspace
+### 1. Main StudyGuard AI Dashboard
 ![Main Dashboard](./screenshots/dashboard.png)
 *Central study command center with neural vision workspace, active telemetry, and session statistics.*
 
 ### 2. Camera & Vision Workspace
-![Camera & Vision Workspace](./screenshots/camera-vision.png)
+![Camera and Vision Workspace](./screenshots/camera-vision.png)
 *Live computer vision monitoring displaying on-device facial landmark mesh, gaze vectors, and object detection overlays.*
 
 ### 3. Deep Work Study Session
@@ -127,123 +156,137 @@ Below are views of the StudyGuard AI workspace and user interface:
 *Drift-free chronometer interface for tracking deep study sprints with pause, resume, and milestone tracking.*
 
 ### 4. Smart Alert Controls & Alarm Settings
-![Smart Alert Controls](./screenshots/smart-alerts.png)
+![Smart Alert Control](./screenshots/smart-alerts.png)
 *Granular alert configuration panel with 5 selectable alarm tunes, audio preview, volume slider, and condition toggles.*
 
 ### 5. Study Intelligence & Privacy Suite
-![Intelligence & Privacy](./screenshots/intelligence-privacy.png)
+![Study Intelligence and Privacy](./screenshots/intelligence-privacy.png)
 *Overview of on-device privacy protections, machine learning runtime status, and focus telemetry.*
 
-> *Note: If screenshot assets are not displaying locally, ensure the relevant images are placed inside the `./screenshots/` directory.*
+> *Note: Place PNG screenshots into the `./screenshots/` folder (`dashboard.png`, `camera-vision.png`, `study-session.png`, `smart-alerts.png`, `intelligence-privacy.png`) to render preview images on GitHub.*
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Domain | Technology / Library | Description |
-| :--- | :--- | :--- |
-| **Frontend Framework** | **React 19** | Declarative component architecture for reactive state and UI |
-| **Build & Tooling** | **Vite 8** | High-performance ES module bundler and dev server |
-| **Styling & Design** | **Tailwind CSS v4 & Vanilla CSS3** | Cybernetic dark glassmorphic design system |
-| **Computer Vision Engine** | **Google MediaPipe Vision Tasks** | `@mediapipe/tasks-vision` client-side WebAssembly runtime |
-| **Landmark Detection** | **MediaPipe FaceLandmarker** | 468-point 3D facial mesh for EAR and head pose tracking |
-| **Object Detection** | **EfficientDet-Lite0 (`.tflite`)** | Real-time on-device classification for mobile phones and electronics |
-| **Audio Alert Engine** | **HTML5 Audio + Web Audio API** | Primary multi-tone MP3 alerts with procedural synthesizer fallback |
-| **Client Storage** | **Browser `localStorage` API** | Local client persistence for sound, volume, and alert settings |
-| **Deployment Platform** | **Vercel** | Global edge hosting with automated HTTPS and instant cache invalidation |
+### Frontend
+- **React 19** — Component-driven reactive user interface
+- **Vite 8** — Fast ES module dev server and production bundler
+- **JavaScript (ES Modules)** — Modern client-side logic
+- **HTML5 & CSS3** — Semantic structure with futuristic glassmorphic styling
+- **Tailwind CSS v4** — Utility design tokens and responsive layout
+
+### AI & Computer Vision
+- **Google MediaPipe Vision Tasks (`@mediapipe/tasks-vision`)** — High-performance client-side vision pipeline
+- **MediaPipe FaceLandmarker** — 468-point 3D facial mesh for EAR and head pose tracking
+- **MediaPipe ObjectDetector (`efficientdet_lite0.tflite`)** — On-device object detection for mobile phones and electronic devices
+- **WebAssembly (WASM)** — Near-native execution speed inside the browser
+- **WebGL** — Hardware-accelerated GPU tensor calculation
+
+### Browser APIs
+- **MediaDevices API (`getUserMedia`)** — Local hardware webcam stream acquisition
+- **Web Audio API** — Synthetic oscillator fallback for audio alarms
+- **HTML5 Audio API** — High-fidelity MP3 alarm tune playback
+- **localStorage API** — Client-side preference persistence
+
+### Deployment & Hosting
+- **Vercel** — Global edge CDN deployment with automated SSL/HTTPS and zero server configuration
 
 ---
 
 ## 💻 Local Installation & Setup
 
-Follow these steps to run StudyGuard AI locally on your development machine:
+Clone the repository:
 
-### Prerequisites
-* [Node.js](https://nodejs.org/) (version 18.0 or higher)
-* [npm](https://www.npmjs.com/) (version 9.0 or higher)
-* A modern browser with webcam permissions enabled (Google Chrome, Microsoft Edge, Brave, or Mozilla Firefox)
-
-### 1. Clone the Repository
 ```bash
 git clone https://github.com/vimleshyadav2509/StudyGuard-AI.git
 cd StudyGuard-AI
 ```
 
-### 2. Install Dependencies
-You can install dependencies from the repository root or within the frontend directory:
-
+### Option 1: Quick Start (From Root)
 ```bash
-# Option A: From root directory
+# Install dependencies
 npm install
 
-# Option B: Directly in frontend directory
-cd frontend
-npm install
-```
-
-### 3. Start the Development Server
-```bash
-# From root directory
+# Start development server
 npm run dev
 
-# Or from frontend directory
-cd frontend
-npm run dev
-```
-
-The Vite development server will start instantly:
-```text
-  VITE v6.x.x  ready in 240 ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-```
-
-Open `http://localhost:5173` in your browser and grant webcam permissions when prompted.
-
-### 4. Build for Production
-To generate an optimized, minified production build:
-
-```bash
+# Build for production
 npm run build
 ```
-The compiled assets will be output to `frontend/dist/`.
+
+### Option 2: Frontend Directory
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser and allow camera permissions to begin.
 
 ---
 
-## 🚀 Production Deployment
+## 🌐 Production Deployment
 
-StudyGuard AI is configured for frictionless deployment on **Vercel**:
+StudyGuard AI is deployed publicly on **Vercel**:
 
-1. Fork or push the repository to GitHub.
-2. Log into [Vercel](https://vercel.com) and click **Add New Project**.
-3. Import `StudyGuard-AI`.
-4. The deployment configuration is automatically recognized via the root [`vercel.json`](./vercel.json):
-   - **Framework Preset**: `Vite`
-   - **Install Command**: `npm --prefix frontend install`
-   - **Build Command**: `npm --prefix frontend run build`
-   - **Output Directory**: `frontend/dist`
-5. Click **Deploy**. Your app will be live within seconds with full HTTPS and WebAssembly support.
+🔗 **Production URL**: [https://study-guard-ai-topaz.vercel.app](https://study-guard-ai-topaz.vercel.app)
+
+The application runs directly in modern web browsers and does not require users to install:
+- Python or backend frameworks
+- Node.js runtime
+- Local machine learning environments
+- Desktop extensions or drivers
+
+Vercel configuration is defined in [`vercel.json`](./vercel.json):
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "installCommand": "npm --prefix frontend install",
+  "buildCommand": "npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite"
+}
+```
 
 ---
 
-## 💡 Practical Use Cases
+## 🎯 Use Cases
 
-* **Self-Directed Study Sessions**: Maintain cognitive momentum while preparing for competitive exams, university coursework, or certifications.
-* **Deep Work & Software Engineering**: Minimize involuntary context switching and phone checking during coding sprints.
-* **Digital Distraction Management**: Immediate sensory feedback when reaching for a smartphone during study hours.
-* **Drowsiness & Fatigue Prevention**: Alerts students when micro-sleeps or eye strain occur so they can step away for a healthy break.
-* **Hackathons & Academic Demonstrations**: A state-of-the-art showcase of client-side WebAssembly computer vision without server costs.
+StudyGuard AI is built for:
+
+- 📚 **Focused Self-Study**: Preparing for competitive exams, university degrees, and technical certifications.
+- 💻 **Deep Work Sprints**: Minimizing context switching and digital fatigue during programming or writing sessions.
+- 🧑‍🎓 **Student Productivity**: Developing disciplined study habits with real-time feedback.
+- 🧠 **Attention & Fatigue Awareness**: Immediate notification upon prolonged eye closure or microsleep onset.
+- 📵 **Distraction Management**: Visual and audible cues whenever a smartphone enters the visual workspace.
+- 🏫 **Smart Education Projects**: Academic and laboratory demonstrations of edge AI computer vision.
+- 🚀 **On-Device ML Showcase**: Clean demonstration of client-side MediaPipe WASM performance without cloud compute expenses.
 
 ---
 
-## 🔮 Future Enhancements
+## 🔮 Future Improvements
 
-* 📊 **Historical Focus Analytics**: Visual charts showing daily/weekly study retention and distraction breakdown.
-* 🍅 **Adaptive Pomodoro Intervals**: Dynamic session duration adjustments based on detected fatigue frequency.
-* 🧘 **Ergonomic Posture Alerts**: Detection of slumping, spinal curvature, or improper camera distance.
-* 🎯 **Custom Threshold Calibration**: Personalized calibration wizard for users with unique eye shapes or ambient lighting conditions.
-* ☁️ **Encrypted Cloud Sync (Optional)**: User-controlled, end-to-end encrypted session backup across multiple devices.
+Planned future enhancements include:
+
+- 📊 **Historical Focus Analytics**: Graphical trends of daily study duration and attention stability.
+- 🍅 **Adaptive Pomodoro Timers**: Dynamic session adjustments based on observed fatigue frequency.
+- 🧘 **Ergonomic Posture Monitoring**: Alerts for spinal slumping, leaning, or inadequate camera distance.
+- 🎯 **Custom Threshold Calibration**: Interactive calibration wizard for personalized eye aspect ratios.
+- ☁️ **Encrypted Cloud Sync (Optional)**: User-controlled, end-to-end encrypted study logs across multiple devices.
+
+---
+
+## 🤝 Contributing
+
+Contributions, suggestions, and improvements are welcome!
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m "feat: add amazing feature"`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
@@ -251,21 +294,19 @@ StudyGuard AI is configured for frictionless deployment on **Vercel**:
 
 **Vimlesh Kumar Yadav**  
 *B.Tech in Computer Science & Engineering*  
-*Project*: StudyGuard AI  
+*Project*: **StudyGuard AI**  
 *GitHub*: [@vimleshyadav2509](https://github.com/vimleshyadav2509)
 
 ---
 
-## ⭐ Support & Feedback
+## ⭐ Support
 
-If you find StudyGuard AI useful or educational:
-- **Star** this repository on [GitHub](https://github.com/vimleshyadav2509/StudyGuard-AI) to support ongoing development!
-- Report bugs or submit feature suggestions via [GitHub Issues](https://github.com/vimleshyadav2509/StudyGuard-AI/issues).
+If you find StudyGuard AI useful or inspiring, please consider giving the repository a ⭐ on [GitHub](https://github.com/vimleshyadav2509/StudyGuard-AI)!
 
 ---
 
 <div align="center">
 
-**Privacy First. Intelligence On-Device. Focus Without Distraction.**
+### 🔒 Privacy First. Intelligence On-Device. Focus Without Distraction.
 
 </div>
