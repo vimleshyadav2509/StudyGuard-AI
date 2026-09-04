@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+    <linearGradient id="coreGlow" x1="20" y1="20" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Dark Rounded Shield Surface -->
+  <path d="M32 6 L52 14 C52 38 32 56 32 56 C32 56 12 38 12 14 Z" fill="#080c17" />
+  
+  <!-- Outer Neon Gradient Shield Border -->
+  <path d="M32 6 L52 14 C52 38 32 56 32 56 C32 56 12 38 12 14 Z" 
+        stroke="url(#shieldGrad)" 
+        stroke-width="3.5" 
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        filter="url(#glow)" />
+
+  <!-- Inner Cybernetic Lens / Eye Iris -->
+  <circle cx="32" cy="28" r="8.5" fill="none" stroke="url(#coreGlow)" stroke-width="2.5" />
+  <circle cx="32" cy="28" r="4" fill="#06b6d4" />
+  <circle cx="34" cy="26" r="1.5" fill="#ffffff" />
+
+  <!-- Futuristic Focus Reticle / Pulse Nodes -->
+  <path d="M32 15 V19 M32 37 V41 M19 28 H23 M41 28 H45" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" />
+</svg>

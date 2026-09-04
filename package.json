@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "npm --prefix frontend run dev -- --open",
+    "start": "npm --prefix frontend run dev -- --open",
+    "build": "npm --prefix frontend run build"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}
