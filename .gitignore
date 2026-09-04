@@ -1,4 +1,5 @@
-# Frontend dependencies and build output
+# Dependencies and build output
+node_modules/
 frontend/node_modules/
 frontend/dist/
 
